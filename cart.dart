@@ -86,111 +86,127 @@ class _CartPageState extends State<CartPage> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemBuilder: (context, index) {
                 final item = cartItems[index];
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
-                    borderRadius: BorderRadius.circular(12),
+
+                return Dismissible(
+                  key: Key(item["name"]), // Unique key for each item
+                  direction: DismissDirection.endToStart, // Swipe left to delete
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 20),
+                    margin: const EdgeInsets.only(bottom: 12), // Matches cart item spacing
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade400,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.delete, color: Colors.white, size: 30),
                   ),
-                  child: Row(
-                    children: [
-                      // Product Image
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        width: 80,
-                        height: 80,
-                        child: Image.asset(item["image"], fit: BoxFit.cover),
-                      ),
-                      const SizedBox(width: 12),
-                      // Product Details
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item["name"],
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
+                  onDismissed: (direction) {
+                    setState(() {
+                      cartItems.removeAt(index); // Remove item when dismissed
+                    });
+                  },
+                  child: Container(
+                    height: 100, // ✅ Ensures uniform height
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        // Product Image
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          width: 80,
+                          height: 80,
+                          child: Image.asset(item["image"], fit: BoxFit.cover),
+                        ),
+                        const SizedBox(width: 12),
+
+                        // Product Details
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center, // ✅ Align content
+                              children: [
+                                Text(
+                                  item["name"],
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "Size ${item["size"]}",
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "RM ${item["price"].toStringAsFixed(2)}",
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blue,
+                                const SizedBox(height: 4),
+                                Text(
+                                  "Size ${item["size"]}",
+                                  style: const TextStyle(color: Colors.grey),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 4),
+                                Text(
+                                  "RM ${item["price"].toStringAsFixed(2)}",
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      // Quantity & Selection
-                      Column(
-                        children: [
-                          // Radio Button (Select/Unselect)
-                          IconButton(
-                            icon: Icon(
-                              item["selected"]
-                                  ? Icons.radio_button_checked
-                                  : Icons.radio_button_off,
-                              color: const Color.fromARGB(255, 255, 179, 0),
+
+                        // Quantity & Selection
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center, // ✅ Align content
+                          children: [
+                            // Radio Button (Select/Unselect)
+                            IconButton(
+                              icon: Icon(
+                                item["selected"]
+                                    ? Icons.radio_button_checked
+                                    : Icons.radio_button_off,
+                                color: const Color.fromARGB(255, 255, 179, 0),
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  item["selected"] = !item["selected"];
+                                });
+                              },
                             ),
-                            onPressed: () {
-                              setState(() {
-                                item["selected"] = !item["selected"];
-                              });
-                            },
-                          ),
-                          Row(
-                            children: [
-                              // Decrease Quantity Button
-                              IconButton(
-                                icon: const Icon(Icons.remove, color: Colors.black),
-                                onPressed: item["quantity"] > 1
-                                    ? () {
-                                        setState(() {
-                                          item["quantity"]--;
-                                        });
-                                      }
-                                    : null,
-                              ),
-                              Text(
-                                "${item["quantity"]}",
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                              ),
-                              // Increase Quantity Button
-                              IconButton(
-                                icon: const Icon(Icons.add, color: Colors.black),
-                                onPressed: () {
-                                  setState(() {
-                                    item["quantity"]++;
-                                  });
-                                },
-                              ),
-                            ],
-                          ),
-                          // Delete Button
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              setState(() {
-                                cartItems.removeAt(index);
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
+                            Row(
+                              children: [
+                                // Decrease Quantity Button
+                                IconButton(
+                                  icon: const Icon(Icons.remove, color: Colors.black),
+                                  onPressed: item["quantity"] > 1
+                                      ? () {
+                                          setState(() {
+                                            item["quantity"]--;
+                                          });
+                                        }
+                                      : null,
+                                ),
+                                Text(
+                                  "${item["quantity"]}",
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                                // Increase Quantity Button
+                                IconButton(
+                                  icon: const Icon(Icons.add, color: Colors.black),
+                                  onPressed: () {
+                                    setState(() {
+                                      item["quantity"]++;
+                                    });
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },

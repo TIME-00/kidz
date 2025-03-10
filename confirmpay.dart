@@ -44,7 +44,7 @@ class ConfirmPaymentPage extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 30),
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
+                backgroundColor: const Color.fromRGBO(245, 124, 0, 1),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                 minimumSize: const Size(double.infinity, 50),
               ),
@@ -52,7 +52,7 @@ class ConfirmPaymentPage extends StatelessWidget {
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const HomePage()),
-                  (route) => false, // Clears the stack
+                  (route) => false, // Clears all previous screens
                 );
               },
               child: const Text("Continue Shopping", style: TextStyle(color: Colors.white, fontSize: 16)),
@@ -64,9 +64,10 @@ class ConfirmPaymentPage extends StatelessWidget {
           // ✅ View All Orders Button
           TextButton(
             onPressed: () {
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const OrdersPage()), // ✅ Navigate to Orders Page
+                (route) => false, // Clears all previous screens (no back button)
               );
             },
             child: const Text("View all Orders", style: TextStyle(fontSize: 16, color: Colors.grey)),

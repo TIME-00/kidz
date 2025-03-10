@@ -63,6 +63,19 @@ class _OrdersPageState extends State<OrdersPage> {
     }).toList();
   }
 
+  String getGreeting() {
+    DateTime now = DateTime.now();
+    int hour = now.hour;
+    
+    if (hour < 12) {
+      return "Good Morning";
+    } else if (hour < 17) {
+      return "Good Afternoon";
+    } else {
+      return "Good Evening";
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> filteredOrders = getFilteredOrders().where((order) {
@@ -95,9 +108,21 @@ class _OrdersPageState extends State<OrdersPage> {
               ),
             ),
             const SizedBox(width: 15),
-            const Text(
-              "Rooben",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+            
+            // Column to show Greeting and Name
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  getGreeting(), // ✅ Dynamically display greeting
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+                ),
+                const SizedBox(height: 2), // Small space between greeting and name
+                const Text(
+                  "Rooben", // ✅ User name
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                ),
+              ],
             ),
           ],
         ),
@@ -298,7 +323,7 @@ class _OrdersPageState extends State<OrdersPage> {
                             Positioned(
                               top: 7,
                               child: FloatingActionButton(
-                                backgroundColor: Colors.purple,
+                                backgroundColor: const Color.fromARGB(255, 179, 0, 211),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                                 onPressed: () {
                                   Navigator.push(

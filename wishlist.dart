@@ -52,17 +52,17 @@ class _WishlistPageState extends State<WishlistPage> {
         .toList();
 
     return Scaffold(
-      backgroundColor: Colors.blue.shade50,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.blue.shade50,
+        backgroundColor: const Color.fromRGBO(245, 124, 0, 1),
         elevation: 0,
         title: const Text(
           "My Wishlists",
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+          style: TextStyle(color: Colors.black, fontSize: 22, fontWeight: FontWeight.bold),
         ),
-        centerTitle: false,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.keyboard_arrow_up, color: Colors.black, size: 30),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -71,6 +71,7 @@ class _WishlistPageState extends State<WishlistPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 15),
             // Search Bar
             Container(
               decoration: BoxDecoration(

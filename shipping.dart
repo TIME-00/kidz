@@ -22,15 +22,15 @@ class _ShippingAddressPageState extends State<ShippingAddressPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color.fromRGBO(245, 124, 0, 1),
         elevation: 0,
         title: const Text(
-          "Settings",
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+          "Shipping Address",
+          style: TextStyle(color: Colors.black, fontSize: 22, fontWeight: FontWeight.bold),
         ),
-        centerTitle: false,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.keyboard_arrow_up, color: Colors.orange, size: 30),
+          icon: const Icon(Icons.keyboard_arrow_up, color: Colors.black, size: 30),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -39,9 +39,10 @@ class _ShippingAddressPageState extends State<ShippingAddressPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 15),
             const Text(
-              "Shipping Address",
-              style: TextStyle(fontSize: 16, color: Colors.black54),
+              "Kidz will delivery your order to this address",
+              style: TextStyle(fontSize: 16, color: Colors.black),
             ),
             const SizedBox(height: 20),
 

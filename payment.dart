@@ -44,17 +44,17 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.blue.shade50,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.blue.shade50,
+        backgroundColor: const Color.fromRGBO(245, 124, 0, 1),
         elevation: 0,
         title: const Text(
-          "Settings",
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+          "Payment Methods",
+          style: TextStyle(color: Colors.black, fontSize: 22, fontWeight: FontWeight.bold),
         ),
-        centerTitle: false,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.keyboard_arrow_up, color: Colors.black, size: 30),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -63,11 +63,6 @@ class _PaymentMethodsPageState extends State<PaymentMethodsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 10),
-            const Text(
-              "Payment Methods",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
-            ),
             const SizedBox(height: 15),
 
             // Card Section (Updated to Fit Image)

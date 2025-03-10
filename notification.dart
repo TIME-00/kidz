@@ -29,9 +29,9 @@ class _NotificationPageState extends State<NotificationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.blue.shade50,
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color.fromRGBO(245, 124, 0, 1),
         elevation: 0,
         title: const Text(
           "Notification",
@@ -39,7 +39,7 @@ class _NotificationPageState extends State<NotificationPage> {
         ),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.keyboard_arrow_up, color: Colors.black, size: 30),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -79,7 +79,7 @@ class _NotificationPageState extends State<NotificationPage> {
         margin: const EdgeInsets.symmetric(horizontal: 5),
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 15),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.orange : Colors.blue.shade100,
+          color: isSelected ? const Color.fromARGB(255, 255, 179, 0) : Colors.blue.shade100,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Text(
