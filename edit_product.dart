@@ -32,7 +32,16 @@ class _EditProductPageState extends State<EditProductPage> {
 
   final List<String> allSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
   final List<String> allColors = [
-    'Red', 'Blue', 'Green', 'Yellow', 'Black', 'White', 'Pink', 'Purple', 'Brown', 'Orange'
+    'Red',
+    'Blue',
+    'Green',
+    'Yellow',
+    'Black',
+    'White',
+    'Pink',
+    'Purple',
+    'Brown',
+    'Orange'
   ];
 
   bool isSubmitting = false;
@@ -40,46 +49,58 @@ class _EditProductPageState extends State<EditProductPage> {
   @override
   void initState() {
     super.initState();
-    productNameController = TextEditingController(text: widget.productData['product_name']);
-    productDescriptionController = TextEditingController(text: widget.productData['product_description']);
-    productPriceController = TextEditingController(text: "RM ${widget.productData['product_price']}");
+    productNameController =
+        TextEditingController(text: widget.productData['product_name']);
+    productDescriptionController =
+        TextEditingController(text: widget.productData['product_description']);
+    productPriceController = TextEditingController(
+        text: "RM ${widget.productData['product_price']}");
 
     productImages = List<String>.from(widget.productData['product_images']);
     selectedSizes = List<String>.from(widget.productData['product_sizes']);
     selectedColors = List<String>.from(widget.productData['product_colors']);
   }
 
-  /// ✅ Pick Image from Gallery
-  Future<void> pickImage() async {
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      if (kIsWeb) {
-        final imageBytes = await pickedFile.readAsBytes();
-        setState(() {
-          selectedImagesWeb.add(imageBytes);
-        });
-      } else {
-        setState(() {
-          selectedImagesMobile.add(File(pickedFile.path));
-        });
-      }
+  /// ✅ Delete Product Confirmation
+  Future<void> confirmDeleteProduct() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Delete Product"),
+        content: const Text(
+            "Are you sure you want to delete this product? This action cannot be undone."),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text("Cancel")),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text("Delete", style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      deleteProduct();
     }
   }
 
-  /// ✅ Upload Images to Supabase Storage
-  Future<List<String>> uploadImages() async {
-    final List<String> uploadedUrls = List.from(productImages);
-
-    for (var image in selectedImagesMobile) {
-      final imageName = "${DateTime.now().millisecondsSinceEpoch}.jpg";
-      final storagePath = "products/$imageName";
-
-      final fileBytes = await image.readAsBytes();
-      await supabase.storage.from('product-images').uploadBinary(storagePath, fileBytes);
-      uploadedUrls.add(supabase.storage.from('product-images').getPublicUrl(storagePath));
+  /// ✅ Delete Product in Supabase
+  Future<void> deleteProduct() async {
+    setState(() => isSubmitting = true);
+    try {
+      await supabase
+          .from('products')
+          .delete()
+          .eq('id', widget.productData['id']);
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Product deleted successfully!")));
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error: $e")));
     }
-
-    return uploadedUrls;
+    setState(() => isSubmitting = false);
   }
 
   /// ✅ Update Product in Supabase
@@ -89,21 +110,21 @@ class _EditProductPageState extends State<EditProductPage> {
     setState(() => isSubmitting = true);
 
     try {
-      final uploadedImageUrls = await uploadImages();
-
       await supabase.from('products').update({
         'product_name': productNameController.text,
         'product_description': productDescriptionController.text,
-        'product_price': double.parse(productPriceController.text.replaceAll("RM", "").trim()),
-        'product_images': uploadedImageUrls,
+        'product_price': double.parse(
+            productPriceController.text.replaceAll("RM", "").trim()),
         'product_sizes': selectedSizes,
         'product_colors': selectedColors,
       }).eq('id', widget.productData['id']);
 
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Product updated successfully!")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Product updated successfully!")));
       Navigator.pop(context);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text("Error: $e")));
     }
 
     setState(() => isSubmitting = false);
@@ -112,7 +133,15 @@ class _EditProductPageState extends State<EditProductPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Edit Product")),
+      appBar: AppBar(
+        title: const Text("Edit Product"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: confirmDeleteProduct,
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -138,12 +167,14 @@ class _EditProductPageState extends State<EditProductPage> {
               // ✅ Product Description
               TextFormField(
                 controller: productDescriptionController,
-                decoration: const InputDecoration(labelText: "Product Description"),
+                decoration:
+                    const InputDecoration(labelText: "Product Description"),
               ),
               const SizedBox(height: 16),
 
               // ✅ Select Sizes
-              const Text("Select Sizes", style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text("Select Sizes",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               Wrap(
                 spacing: 10,
                 children: allSizes.map((size) {
@@ -153,7 +184,9 @@ class _EditProductPageState extends State<EditProductPage> {
                     selected: isSelected,
                     onSelected: (_) {
                       setState(() {
-                        isSelected ? selectedSizes.remove(size) : selectedSizes.add(size);
+                        isSelected
+                            ? selectedSizes.remove(size)
+                            : selectedSizes.add(size);
                       });
                     },
                   );
@@ -162,7 +195,8 @@ class _EditProductPageState extends State<EditProductPage> {
               const SizedBox(height: 16),
 
               // ✅ Select Colors
-              const Text("Select Colors", style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text("Select Colors",
+                  style: TextStyle(fontWeight: FontWeight.bold)),
               Wrap(
                 spacing: 10,
                 children: allColors.map((color) {
@@ -172,38 +206,15 @@ class _EditProductPageState extends State<EditProductPage> {
                     selected: isSelected,
                     onSelected: (_) {
                       setState(() {
-                        isSelected ? selectedColors.remove(color) : selectedColors.add(color);
+                        isSelected
+                            ? selectedColors.remove(color)
+                            : selectedColors.add(color);
                       });
                     },
                   );
                 }).toList(),
               ),
               const SizedBox(height: 16),
-
-              // ✅ Product Images
-              const Text("Product Images", style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 10,
-                children: [
-                  ...productImages.map(
-                    (imageUrl) => ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: Image.network(imageUrl, width: 80, height: 80, fit: BoxFit.cover),
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: pickImage,
-                    child: Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.add, size: 40, color: Colors.black),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
 
               // ✅ Update Product Button
               SizedBox(
@@ -212,12 +223,14 @@ class _EditProductPageState extends State<EditProductPage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: isSubmitting ? null : updateProduct,
                   child: isSubmitting
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text("Update Product", style: TextStyle(color: Colors.white, fontSize: 16)),
+                      : const Text("Update Product",
+                          style: TextStyle(color: Colors.white, fontSize: 16)),
                 ),
               ),
             ],

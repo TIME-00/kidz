@@ -328,7 +328,7 @@ class _OrdersPageState extends State<OrdersPage> {
                                 onPressed: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(builder: (context) => const CartPage()),
+                                    MaterialPageRoute(builder: (context) => CartPage(cartItems: [])), // ✅ Ensure `cartItems` is passed
                                   );
                                 },
                                 child: Stack(

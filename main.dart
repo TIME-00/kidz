@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:kidz/login.dart'; // Import Login Page
+import 'package:kidz/login.dart'; 
+import 'package:provider/provider.dart';
+import 'user_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // ✅ Import Supabase SDK
 
 void main() async {
@@ -12,7 +14,12 @@ void main() async {
     anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpkZ3hidGtkb2Fpem93aG53eGtsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk3OTQ5NjgsImV4cCI6MjA1NTM3MDk2OH0.0yCPmja-YjkrDX89vLQhXtxJ38X9AYw6HVFoqVK3YqY" // Replace with your Supabase API Key
   );
 
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => UserProvider()..fetchUserData(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
