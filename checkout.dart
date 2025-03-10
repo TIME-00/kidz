@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'shipping.dart';
 import 'confirmpay.dart';
 
@@ -13,8 +14,32 @@ class CheckoutPage extends StatefulWidget {
 }
 
 class _CheckoutPageState extends State<CheckoutPage> {
+  final supabase = Supabase.instance.client;
+  String selectedAddress = "Fetching address...";
   String selectedPayment = "Touch & Go";
-  String selectedAddress = "Home, Raffles University Medini";
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUserAddress();
+  }
+
+  Future<void> fetchUserAddress() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final response = await supabase.from('users').select('address, city, postcode').eq('id', user.id).maybeSingle();
+
+    if (response != null) {
+      setState(() {
+        selectedAddress = "${response['address']}, ${response['city']} ${response['postcode']}";
+      });
+    }
+  }
+
+  void confirmOrder() {
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ConfirmPaymentPage()));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +68,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 children: [
                   // Delivery Address Section
                   const SizedBox(height: 10),
-                  const Text("Delivery Address", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text("Delivery Address",
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
@@ -56,7 +83,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                       onTap: () => Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => const ShippingAddressPage()),
+                        MaterialPageRoute(
+                            builder: (context) => const ShippingAddressPage()),
                       ),
                     ),
                   ),
@@ -77,21 +105,33 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           groupValue: selectedPayment,
                           title: const Text("Touch & Go"),
                           fillColor: MaterialStateProperty.all(const Color.fromARGB(255, 0, 0, 0)),
-                          onChanged: (value) => setState(() => selectedPayment = value.toString()),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedPayment = value.toString();
+                            });
+                          },
                         ),
                         RadioListTile(
                           value: "Duit Now",
                           groupValue: selectedPayment,
                           title: const Text("Card"),
                           fillColor: MaterialStateProperty.all(const Color.fromARGB(255, 0, 0, 0)),
-                          onChanged: (value) => setState(() => selectedPayment = value.toString()),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedPayment = value.toString();
+                            });
+                          },
                         ),
                         RadioListTile(
                           value: "Cash on Delivery",
                           groupValue: selectedPayment,
                           title: const Text("Cash on Delivery"),
                           fillColor: MaterialStateProperty.all(const Color.fromARGB(255, 0, 0, 0)),
-                          onChanged: (value) => setState(() => selectedPayment = value.toString()),
+                          onChanged: (value) {
+                            setState(() {
+                              selectedPayment = value.toString();
+                            });
+                          },
                         ),
                       ],
                     ),
@@ -108,11 +148,22 @@ class _CheckoutPageState extends State<CheckoutPage> {
                         child: ListTile(
                           leading: ClipRRect(
                             borderRadius: BorderRadius.circular(8),
-                            child: Image.asset(item["image"], width: 50, height: 50, fit: BoxFit.cover),
+                            child: Image.network(
+                              item["product_image"] ?? "https://via.placeholder.com/150",
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset('assets/img/placeholder.jpg');
+                              },
+                            ),
                           ),
-                          title: Text(item["name"], style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text("Size: ${item["size"]}  RM ${item["price"]}"),
-                          trailing: Text("x${item["quantity"]}"),
+                          title: Text(
+                            item["product_name"] ?? "Unknown Product",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text("Size: ${item["size"] ?? "N/A"}  RM ${(item["product_price"] as num?)?.toDouble() ?? 0.0}"),
+                          trailing: Text("x${item["quantity"] ?? 1}"),
                         ),
                       );
                     }).toList(),
@@ -151,12 +202,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                     minimumSize: const Size(double.infinity, 50),
                   ),
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ConfirmPaymentPage()),
-                    );
-                  },
+                  onPressed: confirmOrder,
                   child: const Text("Continue", style: TextStyle(color: Colors.white, fontSize: 16)),
                 ),
               ],

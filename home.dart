@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'cart.dart';
 import 'orders.dart';
-import 'product_details.dart';
+import 'product_details.dart' as details_page;
 import 'profile.dart';
 import 'notification.dart';
+import 'user_provider.dart';
 
 void main() {
   runApp(const MyApp());
@@ -53,6 +55,7 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     fetchUserData();
     fetchProducts();
+    Provider.of<UserProvider>(context, listen: false).fetchUserData();
   }
 
   Future<void> fetchUserData() async {
@@ -122,6 +125,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserProvider>(context);
+    final String userFirstName = userProvider.userData?["first_name"] ?? "User";
+
     List<Map<String, dynamic>> filteredProducts = getFilteredProducts();
 
     return Scaffold(
@@ -161,7 +167,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  userFirstName ?? "User", // ✅ Show fetched name
+                  userFirstName, // ✅ Show fetched name
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
                 ),
               ],
@@ -336,7 +342,7 @@ class _HomePageState extends State<HomePage> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const CartPage()),
+                            MaterialPageRoute(builder: (context) => CartPage(cartItems: [])), // ✅ Pass an empty list or the actual cart data
                           );
                         },
                         child: Stack(
@@ -462,9 +468,7 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (context) => ProductDetailsPage(product: widget.product),
-          ),
+          MaterialPageRoute(builder: (context) => details_page.ProductDetailsPage(product: widget.product)),
         );
       },
       child: Container(

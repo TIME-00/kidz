@@ -75,108 +75,117 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF16601),
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ✅ Animation
-            Lottie.asset(
-              "assets/anime/tracking-order-online.json",
-              width: 150,
-              height: 150,
-              repeat: true,
-            ),
-            const SizedBox(height: 30),
-
-            // ✅ Login Form
-            Container(
-              width: 350,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+      resizeToAvoidBottomInset: true, // ✅ Prevents overflow issues
+      body: SingleChildScrollView(
+        // ✅ Makes content scrollable when keyboard opens
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ✅ Animation
+              Lottie.asset(
+                "assets/anime/tracking-order-online.json",
+                width: 150,
+                height: 150,
+                repeat: true,
               ),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Login / Register",
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 20),
+              const SizedBox(height: 30),
 
-                    // ✅ Email / Phone Input
-                    const Text("Email ID / Mobile No."),
-                    TextFormField(
-                      controller: _emailOrPhoneController,
-                      decoration: const InputDecoration(
-                        hintText: "Enter your Email or Mobile No.",
-                        border: UnderlineInputBorder(),
+              // ✅ Login Form
+              Container(
+                width: 350,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Login / Register",
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
                       ),
-                      validator: (value) => value!.isEmpty ? "This field is required" : null,
-                    ),
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // ✅ Password Input
-                    const Text("Password"),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: true,
-                      decoration: const InputDecoration(
-                        hintText: "Enter your Password",
-                        border: UnderlineInputBorder(),
-                      ),
-                      validator: (value) => value!.isEmpty ? "Password required" : null,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // ✅ Login Button
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color.fromARGB(255, 255, 123, 0),
-                          foregroundColor: Colors.white,
+                      // ✅ Email / Phone Input
+                      const Text("Email ID / Mobile No."),
+                      TextFormField(
+                        controller: _emailOrPhoneController,
+                        decoration: const InputDecoration(
+                          hintText: "Enter your Email or Mobile No.",
+                          border: UnderlineInputBorder(),
                         ),
-                        onPressed: _loginUser, // ✅ Call Login Function
-                        child: const Text("CONTINUE"),
+                        validator: (value) =>
+                            value!.isEmpty ? "This field is required" : null,
                       ),
-                    ),
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 20),
 
-                    const Center(child: Text("OR")),
-                    const SizedBox(height: 10),
+                      // ✅ Password Input
+                      const Text("Password"),
+                      TextFormField(
+                        controller: _passwordController,
+                        obscureText: true,
+                        decoration: const InputDecoration(
+                          hintText: "Enter your Password",
+                          border: UnderlineInputBorder(),
+                        ),
+                        validator: (value) =>
+                            value!.isEmpty ? "Password required" : null,
+                      ),
+                      const SizedBox(height: 20),
 
-                    // ✅ Sign Up Navigation
-                    Center(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const SignupScreen()),
-                          );
-                        },
-                        child: const Text(
-                          "New to Kidz? Sign Up",
-                          style: TextStyle(color: Colors.blue),
+                      // ✅ Login Button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                const Color.fromARGB(255, 255, 123, 0),
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: _loginUser, // ✅ Call Login Function
+                          child: const Text("CONTINUE"),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
+                      const SizedBox(height: 10),
 
-                    // ✅ Terms and Conditions
-                    const Text(
-                      "By continuing, you agree to Kidz Conditions of Use and Privacy Notice.",
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ],
+                      const Center(child: Text("OR")),
+                      const SizedBox(height: 10),
+
+                      // ✅ Sign Up Navigation
+                      Center(
+                        child: GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (context) => const SignupScreen()),
+                            );
+                          },
+                          child: const Text(
+                            "New to Kidz? Sign Up",
+                            style: TextStyle(color: Colors.blue),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // ✅ Terms and Conditions
+                      const Text(
+                        "By continuing, you agree to Kidz Conditions of Use and Privacy Notice.",
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

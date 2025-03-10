@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'cart.dart';
+import 'checkout.dart';
 
 class ProductDetailsPage extends StatefulWidget {
   final Map<String, dynamic> product;
+
   const ProductDetailsPage({super.key, required this.product});
 
   @override
@@ -10,6 +13,7 @@ class ProductDetailsPage extends StatefulWidget {
 }
 
 class _ProductDetailsPageState extends State<ProductDetailsPage> {
+  final supabase = Supabase.instance.client;
   late Map<String, dynamic> product;
   String selectedSize = '';
   String selectedColor = '';
@@ -21,9 +25,81 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     product = widget.product;
   }
 
+  Future<void> addToCart() async {
+    if (selectedSize.isEmpty || selectedColor.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select size and color")),
+      );
+      return;
+    }
+
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final existingCartItem = await supabase
+        .from('cart')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('product_id', product["id"])
+        .eq('size', selectedSize)
+        .eq('color', selectedColor)
+        .maybeSingle();
+
+    if (existingCartItem != null) {
+      // If product exists, increase quantity
+      await supabase
+          .from('cart')
+          .update({'quantity': existingCartItem['quantity'] + 1})
+          .eq('id', existingCartItem['id']);
+    } else {
+      // Insert new product into cart
+      await supabase.from('cart').insert({
+        "user_id": user.id,
+        "product_id": product["id"],
+        "size": selectedSize,
+        "color": selectedColor,
+        "quantity": 1,
+      });
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Added to cart successfully!")),
+    );
+  }
+
+  void buyNow() {
+    if (selectedSize.isEmpty || selectedColor.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select size and color")),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CheckoutPage(
+          cartItems: [
+            {
+              "id": widget.product["id"]?.toString() ?? "",
+              "product_name": widget.product["product_name"] ?? "Unknown Product",
+              "product_price": (widget.product["product_price"] as num?)?.toDouble() ?? 0.0,
+              "product_image": (widget.product["product_images"] != null && widget.product["product_images"].isNotEmpty)
+                  ? widget.product["product_images"][0]
+                  : "https://via.placeholder.com/150",
+              "size": selectedSize,
+              "color": selectedColor,
+              "quantity": 1,
+            }
+          ],
+          total: (widget.product["product_price"] as num?)?.toDouble() ?? 0.0,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-
     List<String> productImages = List<String>.from(product["product_images"] ?? []);
     String productName = product["product_name"] ?? "Unknown Product";
     List<String> productSizes = List<String>.from(product["product_sizes"] ?? []);
@@ -151,89 +227,19 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
 
                   // ✅ Size Selection
                   if (productSizes.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("Size", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 5),
-                          Wrap(
-                            spacing: 8,
-                            children: productSizes.map((size) {
-                              bool isSelected = selectedSize == size;
-                              return GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    selectedSize = size; // Correct assignment
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isSelected ? Colors.blue : Colors.grey[200],
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    size,
-                                    style: TextStyle(
-                                      color: isSelected ? Colors.white : Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  const SizedBox(height: 10),
+                    _buildSelection("Size", productSizes, selectedSize, (value) {
+                      setState(() => selectedSize = value);
+                    }),
 
                   // ✅ Color Selection
                   if (productColors.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("Color", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 5),
-                          Wrap(
-                            spacing: 8,
-                            children: productColors.map((color) {
-                              bool isSelected = selectedColor == color;
-                              return GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    selectedColor = color;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                  decoration: BoxDecoration(
-                                    color: isSelected ? Colors.blue : Colors.grey[200],
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Text(
-                                    color,
-                                    style: TextStyle(
-                                      color: isSelected ? Colors.white : Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                      ),
-                    ),
+                    _buildSelection("Color", productColors, selectedColor, (value) {
+                      setState(() => selectedColor = value);
+                    }),
 
                   const SizedBox(height: 15),
 
-                  // ✅ Product Description (Fetched from Database)
+                  // ✅ Product Description
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: const Text(
@@ -255,7 +261,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             ),
           ),
 
-          // ✅ Bottom Bar: Price, Add to Cart, Buy Now (Floating & Circular)
+          // ✅ Bottom Bar: Add to Cart & Buy Now
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             decoration: BoxDecoration(
@@ -272,41 +278,72 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // ✅ Price Section
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text("Price", style: TextStyle(fontSize: 14, color: Colors.black54)),
                     Text(
                       "RM ${productPrice.toStringAsFixed(2)}",
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color.fromARGB(255, 0, 140, 255)),
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue),
                     ),
                   ],
                 ),
 
-                // ✅ Add to Cart Button
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 255, 123, 0),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  ),
-                  child: const Text("Add to 🛒", style: TextStyle(fontSize: 16)),
-                ),
-
-                // ✅ Buy Now Button
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color.fromARGB(255, 0, 255, 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
-                  child: const Text("Buy Now", style: TextStyle(fontSize: 16)),
+                Row(
+                  children: [
+                    ElevatedButton(
+                      onPressed: addToCart,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      ),
+                      child: const Text("Add to 🛒", style: TextStyle(fontSize: 16)),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: buyNow,  // ✅ Now correctly defined
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      ),
+                      child: const Text("Buy Now", style: TextStyle(fontSize: 16)),
+                    ),
+                  ],
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelection(String title, List<String> options, String selected, Function(String) onSelect) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 5),
+          Wrap(
+            spacing: 8,
+            children: options.map((option) {
+              bool isSelected = selected == option;
+              return GestureDetector(
+                onTap: () => onSelect(option),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.blue : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(option, style: TextStyle(color: isSelected ? Colors.white : Colors.black)),
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
