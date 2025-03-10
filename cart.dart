@@ -106,8 +106,18 @@ class _CartPageState extends State<CartPage> {
       context,
       MaterialPageRoute(
         builder: (context) => CheckoutPage(
-          cartItems: selectedItems,
-          total: selectedItems.fold(0.0, (sum, item) => sum + (item["product_price"]?.toDouble() ?? 0.0) * item["quantity"]),
+          cartItems: selectedItems.map((item) {
+            return {
+              "id": item["id"]?.toString() ?? "",
+              "product_name": item["product_name"] ?? "Unknown Product",
+              "product_price": (item["product_price"] as num?)?.toDouble() ?? 0.0,
+              "product_image": item["product_image"] ?? "https://via.placeholder.com/150",
+              "size": item["size"] ?? "N/A",
+              "color": item["color"] ?? "N/A",
+              "quantity": item["quantity"] ?? 1,
+            };
+          }).toList(),
+          total: selectedItems.fold(0.0, (sum, item) => (sum + ((item["product_price"] as num?)?.toDouble() ?? 0.0) * (item["quantity"] ?? 1))),
         ),
       ),
     );

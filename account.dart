@@ -120,7 +120,7 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
     }
   }
 
-  /// ✅ Delete user account (with confirmation dialog)
+  /// ✅ Delete user account and move data to `past_users`
   Future<void> deleteAccount() async {
     bool confirmDelete = await showDialog(
       context: context,
@@ -142,21 +142,74 @@ class _AccountSettingsPageState extends State<AccountSettingsPage> {
 
     if (!confirmDelete) return;
 
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
     try {
-      // ✅ Delete user data from the 'users' table
-      await supabase.from('users').delete().eq('id', userId);
+      // ✅ Fetch user data before deleting
+      final userData = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .maybeSingle();
 
-      // ✅ Sign the user out and delete their account from auth
+      // ✅ Check if user is a seller
+      final sellerData = await supabase.from('sellers').select('*').eq('user_id', user.id).maybeSingle();
+
+      // ✅ Fetch all products uploaded by the user
+      final productData = await supabase.from('products').select('*').eq('seller_id', sellerData?['id']);
+
+      if (userData != null) {
+        // ✅ Move user, seller, and product data to `past_users` before deletion
+        await supabase.from('past_users').insert({
+          "id": userData["id"],
+          "first_name": userData["first_name"],
+          "last_name": userData["last_name"],
+          "email": userData["email"],
+          "mobile_number": userData["mobile_number"],
+          "gender": userData["gender"],
+          "country": userData["country"],
+          "address": userData["address"],
+          "city": userData["city"],
+          "postcode": userData["postcode"],
+          "deleted_at": DateTime.now().toIso8601String(),
+          "seller_id": sellerData?["id"], // If user was a seller, store seller_id
+          "ssm_number": sellerData?["ssm_number"],
+          "company_name": sellerData?["company_name"],
+          "company_type": sellerData?["company_type"],
+          "product_type": sellerData?["product_type"],
+          "location": sellerData?["location"],
+          "products": productData.isNotEmpty ? productData : null, // Store products in JSON
+        });
+      }
+
+      // ✅ Delete user-related records in related tables
+      await supabase.from('orders').delete().eq('user_id', user.id);
+      await supabase.from('cart').delete().eq('user_id', user.id);
+
+      // ✅ Delete seller and products if user was a seller
+      if (sellerData != null) {
+        await supabase.from('products').delete().eq('seller_id', sellerData["id"]);
+        await supabase.from('sellers').delete().eq('user_id', user.id);
+      }
+
+      // ✅ Delete user from `users` table
+      await supabase.from('users').delete().eq('id', user.id);
+
+      // ✅ Delete user from authentication (`auth.users`)
+      await supabase.auth.admin.deleteUser(user.id);
+
+      // ✅ Sign out and redirect to login page
       await supabase.auth.signOut();
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Account deleted successfully!")),
       );
-
-      // ✅ Navigate to login or home page
       Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     } catch (e) {
       print("❌ Error deleting account: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to delete account. Try again.")),
+      );
     }
   }
 

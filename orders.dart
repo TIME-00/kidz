@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'order_invoice.dart';
 import 'cart.dart';
 import 'home.dart';
 import 'profile.dart';
@@ -12,43 +14,51 @@ class OrdersPage extends StatefulWidget {
 }
 
 class _OrdersPageState extends State<OrdersPage> {
+  final supabase = Supabase.instance.client;
+  List<Map<String, dynamic>> orders = [];
   String selectedFilter = "All";
   String searchQuery = "";
+  String userFirstName = "User";
 
-  List<Map<String, dynamic>> orders = [
-    {
-      "image": "assets/img/p1.jpg",
-      "name": "Babyoye kids shoes",
-      "status": "Delivered on 4 Feb, 2025",
-      "statusColor": Colors.green,
-      "payment": "COD",
-      "button": "Track",
-      "buttonColor": const Color.fromARGB(255, 255, 123, 0),
-      "date": DateTime(2025, 2, 4),
-    },
-    {
-      "image": "assets/img/p2.jpg",
-      "name": "Babyoye kids shoes",
-      "status": "Returned on 28 Jul, 2022",
-      "statusColor": const Color.fromARGB(255, 243, 191, 3),
-      "payment": "DuitNow",
-      "button": "Re-order",
-      "buttonColor": const Color.fromARGB(255, 255, 123, 00),
-      "date": DateTime(2022, 7, 28),
-    },
-    {
-      "image": "assets/img/p3.jpg",
-      "name": "Babyoye kids T-shirts",
-      "status": "Refunded on 10 Aug, 2022",
-      "statusColor": Colors.red,
-      "payment": "DuitNow",
-      "button": "Re-order",
-      "buttonColor": const Color.fromARGB(255, 255, 123, 0),
-      "date": DateTime(2022, 8, 10),
-    },
-  ];
+  @override
+  void initState() {
+    super.initState();
+    fetchOrders();
+    fetchUserName();
+  }
 
-  // ✅ Function to filter orders based on selected category
+  Future<void> fetchOrders() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final response = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('order_date', ascending: false);
+
+    setState(() {
+      orders = List<Map<String, dynamic>>.from(response);
+    });
+  }
+
+  Future<void> fetchUserName() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final response = await supabase
+        .from('users')
+        .select('first_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (response != null) {
+      setState(() {
+        userFirstName = response['first_name'] ?? "User";
+      });
+    }
+  }
+
   List<Map<String, dynamic>> getFilteredOrders() {
     DateTime now = DateTime.now();
     DateTime tenDaysAgo = now.subtract(const Duration(days: 10));
@@ -58,28 +68,24 @@ class _OrdersPageState extends State<OrdersPage> {
       if (selectedFilter == "Cancelled" && order["status"].contains("Cancelled")) return true;
       if (selectedFilter == "Returns" && order["status"].contains("Returned")) return true;
       if (selectedFilter == "Refunds" && order["status"].contains("Refunded")) return true;
-      if (selectedFilter == "Last 10 Days" && order["date"].isAfter(tenDaysAgo)) return true;
+      if (selectedFilter == "Last 10 Days" && DateTime.parse(order["order_date"]).isAfter(tenDaysAgo)) return true;
       return false;
     }).toList();
   }
 
   String getGreeting() {
-    DateTime now = DateTime.now();
-    int hour = now.hour;
-    
-    if (hour < 12) {
-      return "Good Morning";
-    } else if (hour < 17) {
-      return "Good Afternoon";
-    } else {
-      return "Good Evening";
-    }
+    int hour = DateTime.now().hour;
+    if (hour < 12) return "Good Morning";
+    if (hour < 17) return "Good Afternoon";
+    return "Good Evening";
   }
 
   @override
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> filteredOrders = getFilteredOrders().where((order) {
-      return order["name"].toLowerCase().contains(searchQuery.toLowerCase());
+      return order["order_items"][0]["product_name"]
+          .toLowerCase()
+          .contains(searchQuery.toLowerCase());
     }).toList();
 
     return Scaffold(
@@ -113,14 +119,12 @@ class _OrdersPageState extends State<OrdersPage> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(getGreeting(),
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black)),
+                const SizedBox(height: 2),
                 Text(
-                  getGreeting(), // ✅ Dynamically display greeting
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
-                ),
-                const SizedBox(height: 2), // Small space between greeting and name
-                const Text(
-                  "Rooben", // ✅ User name
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                  userFirstName,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
                 ),
               ],
             ),
@@ -230,54 +234,37 @@ class _OrdersPageState extends State<OrdersPage> {
                           itemCount: filteredOrders.length,
                           itemBuilder: (context, index) {
                             final order = filteredOrders[index];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
-                              ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    width: 100,
-                                    height: 100,
-                                    child: Image.asset(order["image"], fit: BoxFit.cover),
-                                  ),
-                                  Expanded(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(order["name"], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                          const SizedBox(height: 4),
-                                          Text(order["status"], style: TextStyle(color: order["statusColor"])),
-                                          const SizedBox(height: 4),
-                                          Row(
-                                            children: [
-                                              Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(8)),
-                                                child: Text(order["payment"], style: const TextStyle(color: Colors.black)),
-                                              ),
-                                              const SizedBox(width: 5),
-                                              ElevatedButton(
-                                                style: ElevatedButton.styleFrom(
-                                                  backgroundColor: order["buttonColor"],
-                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                                ),
-                                                onPressed: () {},
-                                                child: Text(order["button"], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => OrderInvoicePage(order: order)),
+                                );
+                              },
+                              child: Card(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                margin: const EdgeInsets.symmetric(vertical: 8),
+                                child: ListTile(
+                                  leading: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Image.network(
+                                      order["order_items"][0]["product_image"],
+                                      width: 50,
+                                      height: 50,
+                                      fit: BoxFit.cover,
                                     ),
                                   ),
-                                ],
+                                  title: Text("Order ID: ${order["id"]}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  subtitle: Text("Total: RM ${order["total_price"].toStringAsFixed(2)}"),
+                                  trailing: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(order["status"], style: const TextStyle(color: Colors.green)),
+                                      Text(order["order_date"].split("T")[0]),
+                                    ],
+                                  ),
+                                ),
                               ),
                             );
                           },

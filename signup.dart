@@ -28,40 +28,41 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _registerUser() async {
     if (_formKey.currentState!.validate() && isAgreed) {
       try {
-        // ✅ Step 1: Register in Supabase Authentication
-        final String email = _emailController.text.trim(); // ✅ Trim spaces
+        final String email = _emailController.text.trim();
+        final String password = _passwordController.text.trim();
 
+        // ✅ Step 1: Register User in Supabase Authentication
         final authResponse = await _supabase.auth.signUp(
-          email: email, // ✅ Pass trimmed email
-          password: _passwordController.text.trim(),
+          email: email,
+          password: password,
         );
 
-        final userId = authResponse.user?.id;
-        if (userId == null) {
+        final user = authResponse.user;
+        if (user == null) {
           throw Exception("Failed to register user in authentication.");
         }
 
-        // ✅ Step 2: Store Additional Details in `users` Table
+        // ✅ Step 2: Ensure `id` in `users` matches Supabase Auth UID
         await _supabase.from('users').insert({
-          'id': userId, // ✅ Use Supabase Auth user ID
+          'id': user.id, // 🔥 Ensure ID matches Supabase Auth UID
           'first_name': _firstNameController.text.trim(),
           'last_name': _lastNameController.text.trim(),
           'gender': selectedGender,
           'mobile_number': _mobileController.text.trim(),
-          'email': _emailController.text.trim(),
+          'email': email,
         });
 
-        // ✅ Step 3: Store `user_id` Locally for Future Use
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('loggedInUserId', userId);
+        print("✅ User registered successfully!");
 
-        print("✅ Registration Successful! User ID: $userId");
+        // ✅ Step 3: Store `user_id` Locally
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('loggedInUserId', user.id);
 
         // ✅ Navigate to Home Page
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const HomePage()),
-          (route) => false, // Clears previous routes
+          (route) => false,
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
