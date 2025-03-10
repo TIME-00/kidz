@@ -1,46 +1,94 @@
 import 'package:flutter/material.dart';
+import 'package:kidz/seller.dart';
 import 'package:kidz/signup.dart';
-import 'package:kidz/home.dart'; // Import HomePage
+import 'package:kidz/home.dart';
 import 'package:lottie/lottie.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class LoginRegisterScreen extends StatefulWidget {
+  const LoginRegisterScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: const LoginRegisterScreen(),
-    );
-  }
+  _LoginRegisterScreenState createState() => _LoginRegisterScreenState();
 }
 
-class LoginRegisterScreen extends StatelessWidget {
-  const LoginRegisterScreen({super.key});
+class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
+  final _supabase = Supabase.instance.client;
+  final _formKey = GlobalKey<FormState>();
+
+  // Controllers for Input Fields
+  final TextEditingController _emailOrPhoneController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  // ✅ Function to Authenticate User
+  Future<void> _loginUser() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        // ✅ Authenticate with Supabase Auth
+        final authResponse = await _supabase.auth.signInWithPassword(
+          email: _emailOrPhoneController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+
+        if (authResponse.user != null) {
+          print("✅ Login Successful! User ID: ${authResponse.user!.id}");
+
+          // ✅ Fetch user details from the `users` table
+          final userData = await _supabase
+              .from('users')
+              .select()
+              .eq('id', authResponse.user!.id)
+              .maybeSingle();
+
+          if (userData == null) {
+            _showSnackbar("User data not found.", Colors.red);
+            return;
+          }
+
+          _showSnackbar("Login successful!", Colors.green);
+
+          // ✅ Navigate to Home Page
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomePage()),
+          );
+        } else {
+          _showSnackbar("Login failed. Please try again.", Colors.red);
+        }
+      } catch (e) {
+        _showSnackbar("Error: ${e.toString()}", Colors.red);
+      }
+    }
+  }
+
+  // ✅ Function to Show Snackbar Messages with Color
+  void _showSnackbar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color, // ✅ Custom color for success/error
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF16601), // Orange Background
+      backgroundColor: const Color(0xFFF16601),
       body: Center(
         child: Column(
-          mainAxisSize: MainAxisSize.min, // Centers content vertically
+          mainAxisSize: MainAxisSize.min,
           children: [
-            // ✅ Animation (Above Login Box)
+            // ✅ Animation
             Lottie.asset(
-              "assets/anime/tracking-order-online.json", // ✅ Replace with your Lottie animation
+              "assets/anime/tracking-order-online.json",
               width: 150,
               height: 150,
               repeat: true,
             ),
+            const SizedBox(height: 30),
 
-            const SizedBox(height: 30), // ✅ Space between animation and box
-
-            // ✅ Login Box
+            // ✅ Login Form
             Container(
               width: 350,
               padding: const EdgeInsets.all(20),
@@ -48,72 +96,84 @@ class LoginRegisterScreen extends StatelessWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Login / Register",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ✅ Email/Mobile Field
-                  const Text("Email ID/Mobile No."),
-                  const TextField(
-                    decoration: InputDecoration(
-                      hintText: "Enter your Email or Mobile No.",
-                      border: UnderlineInputBorder(),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "Login / Register",
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
-                  ),
-                  const SizedBox(height: 20),
+                    const SizedBox(height: 20),
 
-                  // ✅ Continue Button -> Navigate to Home
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 255, 123, 0),
-                        foregroundColor: Colors.white,
+                    // ✅ Email / Phone Input
+                    const Text("Email ID / Mobile No."),
+                    TextFormField(
+                      controller: _emailOrPhoneController,
+                      decoration: const InputDecoration(
+                        hintText: "Enter your Email or Mobile No.",
+                        border: UnderlineInputBorder(),
                       ),
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => HomePage()),
-                        );
-                      },
-                      child: const Text("CONTINUE"),
+                      validator: (value) => value!.isEmpty ? "This field is required" : null,
                     ),
-                  ),
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 20),
 
-                  const Center(child: Text("OR")),
-                  const SizedBox(height: 10),
+                    // ✅ Password Input
+                    const Text("Password"),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        hintText: "Enter your Password",
+                        border: UnderlineInputBorder(),
+                      ),
+                      validator: (value) => value!.isEmpty ? "Password required" : null,
+                    ),
+                    const SizedBox(height: 20),
 
-                  // ✅ Sign Up Navigation
-                  Center(
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const SignupScreen()),
-                        );
-                      },
-                      child: const Text(
-                        "New to Kidz? Sign Up",
-                        style: TextStyle(color: Colors.blue),
+                    // ✅ Login Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color.fromARGB(255, 255, 123, 0),
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: _loginUser, // ✅ Call Login Function
+                        child: const Text("CONTINUE"),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
+                    const SizedBox(height: 10),
 
-                  // ✅ Terms and Conditions
-                  const Text(
-                    "By continuing, you agree to Kidz Conditions of Use and Privacy Notice.",
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ],
+                    const Center(child: Text("OR")),
+                    const SizedBox(height: 10),
+
+                    // ✅ Sign Up Navigation
+                    Center(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const SignupScreen()),
+                          );
+                        },
+                        child: const Text(
+                          "New to Kidz? Sign Up",
+                          style: TextStyle(color: Colors.blue),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // ✅ Terms and Conditions
+                    const Text(
+                      "By continuing, you agree to Kidz Conditions of Use and Privacy Notice.",
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

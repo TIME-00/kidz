@@ -1,19 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProductDetailsPage extends StatefulWidget {
-  const ProductDetailsPage({super.key, required Map<String, dynamic> product});
+  final Map<String, dynamic> product;
+  const ProductDetailsPage({super.key, required this.product});
 
   @override
   _ProductDetailsPageState createState() => _ProductDetailsPageState();
 }
 
 class _ProductDetailsPageState extends State<ProductDetailsPage> {
-  int selectedSize = 0;
-  int selectedColor = 0;
+  late Map<String, dynamic> product;
+  String selectedSize = '';
+  String selectedColor = '';
   bool isFavorite = false;
 
   @override
+  void initState() {
+    super.initState();
+    product = widget.product;
+  }
+
+  @override
   Widget build(BuildContext context) {
+
+    List<String> productImages = List<String>.from(product["product_images"] ?? []);
+    String productName = product["product_name"] ?? "Unknown Product";
+    List<String> productSizes = List<String>.from(product["product_sizes"] ?? []);
+    List<String> productColors = List<String>.from(product["product_colors"] ?? []);
+    String productDescription = product["product_description"] ?? "No description available.";
+    double productPrice = product["product_price"] ?? 0.0;
+    int rating = (product["rating"] ?? 3).clamp(1, 5);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
@@ -30,10 +48,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         color: Colors.grey[200],
-                        child: Image.asset(
-                          "assets/img/p1.jpg", // Example image
+                        child: Image.network(
+                          productImages.isNotEmpty ? productImages[0] : "https://via.placeholder.com/150",
                           width: double.infinity,
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Image.asset('assets/img/placeholder.jpg');
+                          },
                         ),
                       ),
                       Positioned(
@@ -81,11 +102,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: List.generate(
-                        3,
+                        productImages.length,
                         (index) => GestureDetector(
                           onTap: () {
                             setState(() {
-                              // Change main image (if images are different)
+                              productImages.insert(0, productImages.removeAt(index));
                             });
                           },
                           child: Container(
@@ -95,7 +116,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                               border: Border.all(color: Colors.blue, width: 2),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: Image.asset("assets/img/p1.jpg", width: 50, height: 50),
+                            child: Image.network(productImages[index], width: 50, height: 50),
                           ),
                         ),
                       ),
@@ -108,21 +129,19 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Babyoye kids shoes",
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                        Text(
+                          productName,
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 5),
                         Row(
-                          children: const [
-                            Icon(Icons.star, color: Colors.amber, size: 20),
-                            Icon(Icons.star, color: Colors.amber, size: 20),
-                            Icon(Icons.star, color: Colors.amber, size: 20),
-                            Icon(Icons.star, color: Colors.amber, size: 20),
-                            Icon(Icons.star_half, color: Colors.amber, size: 20),
-                            SizedBox(width: 5),
-                            Text("4", style: TextStyle(color: Colors.black54)),
-                          ],
+                          children: List.generate(5, (index) {
+                            return Icon(
+                              index < rating ? Icons.star : Icons.star_border,
+                              color: Colors.amber,
+                              size: 20,
+                            );
+                          }),
                         ),
                       ],
                     ),
@@ -131,85 +150,90 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   const SizedBox(height: 10),
 
                   // ✅ Size Selection
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Size", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 5),
-                        Row(
-                          children: List.generate(
-                            4,
-                            (index) => GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedSize = index;
-                                });
-                              },
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: selectedSize == index ? Colors.blue : Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  "Inch ${index + 5}",
-                                  style: TextStyle(
-                                    color: selectedSize == index ? const Color.fromARGB(255, 0, 0, 0) : Colors.black,
+                  if (productSizes.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text("Size", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 5),
+                          Wrap(
+                            spacing: 8,
+                            children: productSizes.map((size) {
+                              bool isSelected = selectedSize == size;
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    selectedSize = size; // Correct assignment
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? Colors.blue : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    size,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : Colors.black,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
+                              );
+                            }).toList(),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
 
                   const SizedBox(height: 10),
 
                   // ✅ Color Selection
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text("Color", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 5),
-                        Row(
-                          children: List.generate(
-                            4,
-                            (index) => GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedColor = index;
-                                });
-                              },
-                              child: Container(
-                                margin: const EdgeInsets.only(right: 8),
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: [Colors.red, Colors.blue, Colors.orange, Colors.black][index],
-                                  borderRadius: BorderRadius.circular(15),
-                                  border: Border.all(
-                                    color: selectedColor == index ? const Color.fromARGB(255, 111, 111, 111) : const Color.fromARGB(0, 255, 255, 255),
-                                    width: 3,
+                  if (productColors.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text("Color", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 5),
+                          Wrap(
+                            spacing: 8,
+                            children: productColors.map((color) {
+                              bool isSelected = selectedColor == color;
+                              return GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    selectedColor = color;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? Colors.blue : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    color,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : Colors.black,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
+                              );
+                            }).toList(),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
 
                   const SizedBox(height: 15),
 
-                  // ✅ Description
+                  // ✅ Product Description (Fetched from Database)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: const Text(
@@ -219,173 +243,71 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-                    child: const Text(
-                      "The sole should be strong and sturdy, and the upper part of the shoe should be made of a material that can withstand wear and tear. Breathability: Good shoes should be breathable to prevent your feet from sweating and smelling..",
-                      style: TextStyle(color: Colors.black54),
-                    ),
-                  ),
-
-                  // ✅ Free Delivery
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: const [
-                        Text("Free Delivery", style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                        Spacer(),
-                        Text("By Saturday, 20th Aug", style: TextStyle(color: Colors.black54)),
-                      ],
+                    child: Text(
+                      productDescription,
+                      style: const TextStyle(color: Colors.black54),
                     ),
                   ),
 
                   const SizedBox(height: 15),
-
-                  // ✅ Product Details Section
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: const Text(
-                      "Product Details",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  Container(
-                    margin: const EdgeInsets.all(20),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(255, 255, 179, 0),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildDetailRow("Material", "Rubber + Mesh"),
-                        _buildDetailRow("MOQ", "30 pairs for wholesale"),
-                        _buildDetailRow("Transport", "Polybag/Box"),
-                        _buildDetailRow("Elements", "Breathable"),
-                        _buildDetailRow("Closure pattern", "Slip-on"),
-                      ],
-                    ),
-                  ),
-                  
-                  // ✅ Cash on Delivery & Return Policy
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color.fromARGB(255, 255, 179, 0),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                "Cash on Delivery",
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // ✅ White Text
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color.fromARGB(255, 255, 179, 0),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                "30 Days Return",
-                                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // ✅ White Text
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
           ),
 
           // ✅ Bottom Bar: Price, Add to Cart, Buy Now (Floating & Circular)
-          Positioned(
-            bottom: 20, // ✅ Adjusted for better floating effect
-            left: 20,
-            right: 20,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(50), // ✅ Circular shape
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black26.withOpacity(0.3),
-                    blurRadius: 12,
-                    spreadRadius: 2,
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // ✅ Price Section
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Price", style: TextStyle(fontSize: 14, color: Colors.black54)),
-                      Text(
-                        "RM 80.00",
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color.fromARGB(255, 0, 140, 255)),
-                      ),
-                    ],
-                  ),
-
-                  // ✅ Add to Cart Button
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 255, 123, 0),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(50),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26.withOpacity(0.3),
+                  blurRadius: 12,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // ✅ Price Section
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("Price", style: TextStyle(fontSize: 14, color: Colors.black54)),
+                    Text(
+                      "RM ${productPrice.toStringAsFixed(2)}",
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color.fromARGB(255, 0, 140, 255)),
                     ),
-                    child: const Text("Add to 🛒", style: TextStyle(fontSize: 16)),
-                  ),
+                  ],
+                ),
 
-                  // ✅ Buy Now Button
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color.fromARGB(255, 0, 255, 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    ),
-                    child: const Text("Buy Now", style: TextStyle(fontSize: 16)),
+                // ✅ Add to Cart Button
+                ElevatedButton(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 255, 123, 0),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                   ),
-                ],
-              ),
+                  child: const Text("Add to 🛒", style: TextStyle(fontSize: 16)),
+                ),
+
+                // ✅ Buy Now Button
+                ElevatedButton(
+                  onPressed: () {},
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 0, 255, 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  ),
+                  child: const Text("Buy Now", style: TextStyle(fontSize: 16)),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "$title: $value",
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          const Divider(color: Colors.white54, thickness: 1), // ✅ Divider line
         ],
       ),
     );

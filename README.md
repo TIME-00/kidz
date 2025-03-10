@@ -1,20 +1,20 @@
 **Kidz Toy Store**
 **Overview**
-Kidz Toy Store is a mobile application designed for selling kids' toys. This first version focuses on showcasing the products that will be available for sale in the application. Currently, the app features a non-functional user interface, providing a preview of the toy collection without any interactive features.
+Kidz Toy Store is a mobile application designed for selling kids' toys. In version 1, the app featured a non-functional user interface that showcased the products available for sale. With the release of version 2, several new functionalities have been implemented to enhance user experience and enable real transactions.
 
 **Features**
-- Display of various kids' toys available for purchase
-- Simple and user-friendly interface
-- Preview of product categories
+- User Authentication: Users can register and log in using Supabase
+- Product Management: Product information is now stored in Supabase
+- Checkout Functionality: Users can complete their purchases
+- Database Integration: User details, product details, and order data are stored using Supabase
 
 **Tech Stack**
 Framework: Flutter
-Backend: Not implemented yet
-Database: Supabase (planned for future versions)
+Backend: Supabase
+Database: Supabase
 Development Tools: Android Studio, Visual Studio Code
 
 **Future Enhancements**
-- Implement user authentication
-- Add shopping cart and checkout functionality
-- Integrate with Supabase for data management
-- Improve UI/UX with interactive features
+- Improve UI/UX with more interactive elements
+- Add payment gateway integration
+- Implement product reviews and ratings

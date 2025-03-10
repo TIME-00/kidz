@@ -3,8 +3,9 @@ import 'home.dart';
 
 class TermsPage extends StatefulWidget {
   final bool isFromSignup; // Determine if terms should be selectable
+  final VoidCallback? onAgree; // Callback when user agrees to terms
 
-  const TermsPage({super.key, required this.isFromSignup});
+  const TermsPage({super.key, required this.isFromSignup, this.onAgree});
 
   @override
   _TermsPageState createState() => _TermsPageState();
@@ -18,7 +19,7 @@ class _TermsPageState extends State<TermsPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color.fromRGBO(245, 124, 0, 1),
         elevation: 0,
         title: const Text(
           "Terms of Service",
@@ -26,7 +27,7 @@ class _TermsPageState extends State<TermsPage> {
         ),
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: Icon(Icons.keyboard_arrow_up, color: Colors.black, size: 30),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -35,6 +36,7 @@ class _TermsPageState extends State<TermsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const SizedBox(height: 15),
             const Text(
               "Welcome to Our Service!",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
@@ -91,11 +93,15 @@ class _TermsPageState extends State<TermsPage> {
                 onPressed: widget.isFromSignup
                     ? (_isAgreed
                         ? () {
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(builder: (context) => const HomePage()),
-                              (route) => false, // Clears navigation stack
-                            );
+                            if (widget.onAgree != null) {
+                              widget.onAgree!();
+                            } else {
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(builder: (context) => const HomePage()),
+                                (route) => false, // Clears navigation stack
+                              );
+                            }
                           }
                         : null)
                       : null, 

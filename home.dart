@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'cart.dart';
 import 'orders.dart';
 import 'product_details.dart';
@@ -7,6 +8,18 @@ import 'notification.dart';
 
 void main() {
   runApp(const MyApp());
+}
+
+String getGreeting() {
+  int hour = DateTime.now().hour;
+
+  if (hour >= 5 && hour < 12) {
+    return "Good Morning!";
+  } else if (hour >= 12 && hour < 18) {
+    return "Good Afternoon!";
+  } else {
+    return "Good Evening!";
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -29,8 +42,55 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+  final supabase = Supabase.instance.client;
+  String? userFirstName; // ✅ To store user’s first name
+  List<Map<String, dynamic>> products = []; // ✅ To store fetched products
   String selectedFilter = "All";
   String searchQuery = "";
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUserData();
+    fetchProducts();
+  }
+
+  Future<void> fetchUserData() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final response = await supabase
+        .from('users')
+        .select('first_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (response != null) {
+      setState(() {
+        userFirstName = response['first_name']; // ✅ Store the first name
+      });
+    }
+  }
+
+   // ✅ Fetch All Products
+  Future<void> fetchProducts() async {
+    final response = await supabase.from('products').select('*');
+
+    setState(() {
+      products = List<Map<String, dynamic>>.from(response.map((product) {
+        return {
+          "id": product["id"], // ✅ Ensure ID is included for fetching details
+          "product_name": product["product_name"] ?? "Unknown Product",
+          "product_price": product["product_price"] ?? 0.0,
+          "product_images": product["product_images"] ?? ["assets/img/placeholder.jpg"],
+          "rating": product["rating"] ?? 3, 
+          "product_sizes": product["product_sizes"] ?? [], // ✅ Include Sizes
+          "product_colors": product["product_colors"] ?? [], // ✅ Include Colors
+          "product_description": product["product_description"] ?? "No description available.", // ✅ Include Description
+        };
+      }));
+    });
+  }
   
   // Function to filter products
   List<Map<String, dynamic>> getFilteredProducts() {
@@ -40,25 +100,24 @@ class _HomePageState extends State<HomePage> {
     switch (selectedFilter) {
       case "Top Rated":
       case "Top Brands":
-        filtered = filtered.where((product) => product["rating"] > 3).toList();
+        filtered = filtered.where((product) => (product["rating"] ?? 0) > 3).toList(); 
         break;
       case "Under 50":
-        filtered = filtered.where((product) => product["price"] < 50).toList();
+         filtered = filtered.where((product) => (product["product_price"] ?? 0) < 50).toList();
         break;
       case "50+":
-        filtered = filtered.where((product) => product["price"] >= 50).toList();
+        filtered = filtered.where((product) => (product["product_price"] ?? 0) >= 50).toList();
         break;
     }
 
     // Apply search logic
     if (searchQuery.isNotEmpty) {
-      filtered = filtered
-          .where((product) =>
-              product["name"].toLowerCase().contains(searchQuery.toLowerCase()))
-          .toList();
+      filtered = filtered.where((product) =>
+        product["product_name"]?.toLowerCase().contains(searchQuery.toLowerCase()) ?? false).toList(); // ✅ Fix: Ensure product_name is not null
     }
 
     return filtered;
+
   }
 
   @override
@@ -91,9 +150,21 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(width: 15),
-            const Text(
-              "Rooben",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black),
+            
+            // ✅ Display greeting and fetched user’s name
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  getGreeting(),
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  userFirstName ?? "User", // ✅ Show fetched name
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                ),
+              ],
             ),
           ],
         ),
@@ -260,7 +331,7 @@ class _HomePageState extends State<HomePage> {
                     Positioned(
                       top: 7,
                       child: FloatingActionButton(
-                        backgroundColor: Colors.purple,
+                        backgroundColor: const Color.fromARGB(255, 179, 0, 211),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                         onPressed: () {
                           Navigator.push(
@@ -385,13 +456,15 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    int starCount = widget.product["rating"].clamp(1, 5);
+    int starCount = (widget.product["rating"] ?? 3).clamp(1, 5);
 
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => ProductDetailsPage(product: widget.product)),
+          MaterialPageRoute(
+            builder: (context) => ProductDetailsPage(product: widget.product),
+          ),
         );
       },
       child: Container(
@@ -406,20 +479,16 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => ProductDetailsPage(product: widget.product)),
-                      );
-                    },
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      child: Image.asset(
-                        widget.product["image"],
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    child: Image.network(
+                      widget.product["product_images"][0], // ✅ Use first image
+                      width: double.infinity,
+                      height: 100,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Image.asset('assets/img/placeholder.jpg'); // ✅ Placeholder if error
+                      },
                     ),
                   ),
                 ),
@@ -428,21 +497,15 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => ProductDetailsPage(product: widget.product)),
-                          );
-                        },
-                        child: Text(
-                          widget.product["name"],
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
+                      Text(
+                        widget.product["product_name"] ?? "Unknown Product",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "RM ${widget.product["price"]}",
+                        "RM ${widget.product["product_price"] ?? "N/A"}",
                         style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
                       ),
                       const SizedBox(height: 4),
@@ -487,49 +550,3 @@ class _ProductCardState extends State<ProductCard> with SingleTickerProviderStat
     );
   }
 }
-
-// ✅ FIX: Added Missing Products List
-List<Map<String, dynamic>> products = [
-  {
-    "image": "assets/img/p1.jpg",
-    "name": "Babyoye kids shoes",
-    "price": 80.00,
-    "rating": 4,
-  },
-  {
-    "image": "assets/img/p2.jpg",
-    "name": "Kids shoes camoflagde",
-    "price": 30.00,
-    "rating": 2,
-  },
-  {
-    "image": "assets/img/p3.jpg",
-    "name": "Babyhug baby shoes",
-    "price": 40.00,
-    "rating": 3,
-  },
-  {
-    "image": "assets/img/p4.jpg",
-    "name": "Babyhug baby shoes",
-    "price": 100.00,
-    "rating": 5,
-  },
-  {
-    "image": "assets/img/p5.jpg",
-    "name": "Babyhug lego toys",
-    "price": 100.00,
-    "rating": 5,
-  },
-  {
-    "image": "assets/img/p6.jpg",
-    "name": "Babyhug doll",
-    "price": 100.00,
-    "rating": 5,
-  },
-  {
-    "image": "assets/img/p7.jpg",
-    "name": "Babyhug teddy",
-    "price": 100.00,
-    "rating": 4,
-  },
-];
