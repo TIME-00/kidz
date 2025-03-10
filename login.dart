@@ -33,7 +33,7 @@ class _LoginRegisterScreenState extends State<LoginRegisterScreen> {
         if (authResponse.user != null) {
           print("✅ Login Successful! User ID: ${authResponse.user!.id}");
 
-          // ✅ Fetch user details from the `users` table
+          // ✅ Fetch user details from the users table
           final userData = await _supabase
               .from('users')
               .select()

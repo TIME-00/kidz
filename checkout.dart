@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'shipping.dart';
 import 'confirmpay.dart';
+import 'package:uuid/uuid.dart';
 
 class CheckoutPage extends StatefulWidget {
   final List<Map<String, dynamic>> cartItems;
@@ -16,7 +17,7 @@ class CheckoutPage extends StatefulWidget {
 class _CheckoutPageState extends State<CheckoutPage> {
   final supabase = Supabase.instance.client;
   String selectedAddress = "Fetching address...";
-  String selectedPayment = "Touch & Go";
+  String selectedPayment = "Kidz Pay Wallet";
 
   @override
   void initState() {
@@ -37,9 +38,52 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
-  void confirmOrder() {
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const ConfirmPaymentPage()));
+  void confirmOrder() async {
+  final user = supabase.auth.currentUser;
+  if (user == null) return;
+
+  try {
+    // ✅ Generate a valid UUID instead of using milliseconds
+    final String orderId = const Uuid().v4();
+
+    // ✅ Convert order items into a JSON-compatible format
+    List<Map<String, dynamic>> orderItems = widget.cartItems.map((item) {
+      return {
+        "product_name": item["product_name"],
+        "product_price": item["product_price"],
+        "product_image": item["product_image"],
+        "size": item["size"],
+        "color": item["color"],
+        "quantity": item["quantity"],
+      };
+    }).toList();
+
+    // ✅ Insert order into the database
+    await supabase.from('orders').insert({
+      "id": orderId, // Now a valid UUID
+      "user_id": user.id,
+      "order_date": DateTime.now().toIso8601String(),
+      "total_price": widget.total,
+      "payment_method": selectedPayment,
+      "delivery_address": selectedAddress,
+      "status": "Processing",
+      "order_items": orderItems, // ✅ Ensure JSON compatibility
+    });
+
+    // ✅ Navigate to Confirm Payment Page after successful insert
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const ConfirmPaymentPage()),
+      );
+    }
+  } catch (error) {
+    debugPrint("Error inserting order: $error");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Order placement failed! Try again.")),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -101,9 +145,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     child: Column(
                       children: [
                         RadioListTile(
-                          value: "Touch & Go",
+                          value: "Kidz Pay Wallet",
                           groupValue: selectedPayment,
-                          title: const Text("Touch & Go"),
+                          title: const Text("Kidz Pay Wallet"),
                           fillColor: MaterialStateProperty.all(const Color.fromARGB(255, 0, 0, 0)),
                           onChanged: (value) {
                             setState(() {
