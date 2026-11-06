@@ -2,12 +2,13 @@
 
 > **Scope.** This document describes the implementation verified on
 > **2026-11-06**. It is kept separate from the historical plans on purpose.
+> Hosted Seller deployment addendum: **2026-11-07 (+08:00)**, see §8.
 > Nothing here is a July 2026 or March 2025 decision. For history, see
 > [docs/README.md](README.md).
 
 | Item | Value |
 | --- | --- |
-| Branch | `integration/kidz-latest-20261106` (published, **not merged** to `main`) |
+| Branch | `main`, integrated from `integration/kidz-latest-20261106`; merge provenance is retained in Git history |
 | Application baseline commit | `78efb02` "Restore complete Kidz Flutter app with secure Admin management", 2026-11-06 15:14 +08:00 |
 | Application baseline parent | `1fe679e` (GitHub `main`, Version 4, 2025-03-11) |
 | Relation to local work | Source-snapshot import of the local `kidz_store` history (`5ead0d7`…`42c5181`, July 2026) plus the uncommitted Admin Phase 1/2 working tree. Compared with the local working tree (line endings ignored), the only differences are publication hygiene: extra `.gitignore` rules, the machine-specific JDK path removed from `android/gradle.properties`, and a local path replaced by `<project>` in two verification records |
@@ -45,7 +46,7 @@ flowchart LR
 | --- | --- |
 | Client | Flutter/Dart (`sdk ^3.6.1`), `supabase_flutter ^2.10.3`, `provider`, `lottie`, `fl_chart`, `image_picker`, `intl`, `uuid`, `shared_preferences`. Imperative `Navigator` routing from `MaterialApp(home: SplashScreen)` |
 | Configuration | `lib/supabase_config.dart` reads `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` at build time. If either is missing, `MissingConfigApp` names the missing key and never shows a value. No credential is committed |
-| Backend schema | Three applied migrations: `20260727000000_kidz_initial_schema.sql` (July 2026), `20261106030934_admin_read_access.sql` and `20261106034711_admin_management.sql` (November 2026); fourth Seller migration is local/pending, see §8 |
+| Backend schema | Four applied migrations: `20260727000000_kidz_initial_schema.sql` (July 2026), `20261106030934_admin_read_access.sql` and `20261106034711_admin_management.sql` (November 2026); Seller migration `20261106094017_seller_order_access.sql` applied/verified on 2026-11-07 (+08:00), see §8 |
 | Tests | `test/` (10 test files plus one support file), `supabase/tests/` (4 pgTAP files), `tools/admin-db/` (portable PGlite and full-stack harnesses), `tools/admin-account.Tests.ps1` (Pester) |
 | Operator tooling | `tools/admin-account.ps1`: create, inspect, assign-role and reset-password for a dedicated Admin. Masked prompts. Refuses publishable keys. Pinned to one project |
 
@@ -84,7 +85,7 @@ RLS is enabled on every application table.
 | `bankingcard` | Owner only. Synthetic-use restriction is documented, not enforced by RLS; CVV issue remains open | initial schema |
 | `admin` (legacy) | RLS on, **no policies**: unreachable | initial schema |
 | `kidz_private.admin_audit` | No client access | Phase 2 |
-| `kidz_private.seller_order_snapshots` (local/pending) | RLS on, no client table access; private server routines only | Seller fix, E29 |
+| `kidz_private.seller_order_snapshots` | RLS on, no client table access; private server routines only | Seller fix, E29 |
 | Storage `product-images` | Public read. Upload only by registered Sellers under `products/`. No client update/delete | initial schema |
 
 There are no broad Admin INSERT/UPDATE/DELETE policies. Admin writes go only
@@ -161,8 +162,8 @@ reapply the already-recorded migrations.
 
 ### Seller order visibility: CONFIRMED BUG
 
-**The hosted baseline still has this bug. A local fix is now verified in §8;
-its new hosted migration requires separate approval and verification before merge.**
+**Historical finding from the pre-fix hosted baseline. The fix was subsequently
+applied and verified on 2026-11-07 (+08:00), as recorded in §8.**
 Hosted catalog inspection (E26) shows Buyer-owner SELECT/UPDATE predicates plus
 an Admin SELECT policy, with no Seller order policy. `seller_dashboard.dart`
 queries orders before filtering their product IDs; `report_page.dart` delegates
@@ -190,9 +191,9 @@ preserves Buyer isolation and scopes Seller access to its own purchase snapshots
 - CVV and full card numbers are still collected and stored (`lib/addcard.dart`).
   Documentation permits synthetic values only; owner-only RLS does not enforce
   synthetic data or make storage of real card credentials safe.
-- Seller order visibility/status handling and sales reports have a **CONFIRMED
-  BUG** on the hosted baseline (E26, E27). The verified local fix awaits its new
-  migration; see §8.
+- Independent mixed-Seller fulfillment is not implemented: the shared order
+  status remains Admin-managed. The former Seller visibility/report regression
+  (E26, E27) is fixed and its hosted migration verified; see §8.
 - Self-service account deletion is disabled until a server-side function exists.
 - No payment gateway, reviews, recommendations, central router, typed models,
   `ThemeData`, persisted Wishlist or Notifications.
@@ -204,11 +205,12 @@ preserves Buyer isolation and scopes Seller access to its own purchase snapshots
   request. Deletion/revocation remain unverified (U-07); no active privileged
   credential was identified. See [Supabase API key types](https://supabase.com/docs/guides/getting-started/api-keys).
 
-## 8. Local Seller fix (pending hosted approval)
+## 8. Seller fix and verified hosted integration
 
-The original three hosted migrations remain applied. New migration
-`20261106094017_seller_order_access.sql` is **local and unapplied**, and `main`
-remains unmerged (E29). No existing migration or fulfillment status column changed.
+The local fix in commit `9551541` (E29) was deployed after separate authorization
+on **2026-11-07 (+08:00; 2026-11-06 UTC)** (E30). All four migration versions are
+now recorded, including `20261106094017_seller_order_access.sql`. No existing
+migration or fulfillment status column changed.
 
 - `seller_order_page` returns only the registered caller's whitelisted item
   snapshots. Customer identifiers/addresses/payment data, unrelated Seller items
@@ -236,8 +238,19 @@ remains unmerged (E29). No existing migration or fulfillment status column chang
 | Actual isolated Auth/REST/Storage | PASS: 47 checks, including Seller isolation/status/concurrency |
 | Web and Android debug builds | PASS with synthetic configuration |
 | Full analysis | NOT CLEAN: 0 errors, 11 existing warnings, 89 informational findings |
-| Hosted Seller migration and hosted end-to-end behavior | UNVERIFIED / not attempted; separate approval required |
+| Hosted Seller migration/schema/data | PASS: exact dry run and applied version; schema matched rehearsal, all original table fingerprints unchanged |
+| Fresh backup and isolated restore | PASS: 49 tables plus schema/RLS/roles/functions/constraints; 3 Storage objects, 85,521 bytes, matching hashes |
+| Hosted authorization (read-only DB contexts) | PASS: 3 Sellers; 5 non-Admin accounts' Buyer isolation; Guest denied; Admin session guard and RPC permissions preserved |
+| Hosted HTTP boundary | PASS: public catalogue, guest order/RPC denial, private schema not exposed |
+| Restored hosted-schema mutation regression | PASS: 22 synthetic Seller/Buyer/Admin assertions; fixture transaction rolled back in isolated copy |
+| Fresh hosted authenticated UI login/status mutation | NOT PERFORMED: no account credentials requested, existing hosted records not mutated; Admin currently has no active session |
 
-See [SUPABASE.md](../SUPABASE.md#pending-seller-fix-20261106094017_seller_order_accesssql)
-for exact backup, dry-run, application and verification steps. These are future
-instructions, not permission to mutate the hosted project during local work.
+The before/after counts remain **6 Auth accounts, 6 profiles, 3 Sellers, 4
+products, 2 orders and 1 cart**. Both existing order lines were fully attributed
+with valid purchase prices and quantities. Passwords, application roles and
+account/product/order records have matching pre-deployment fingerprints.
+
+See [SUPABASE.md](../SUPABASE.md#seller-fix-20261106094017_seller_order_accesssql)
+for the completed rollout procedure. Backups and private verification manifests
+remain outside Git. No hosted business mutation tests or application deployment
+were performed; the original project and global development settings are unchanged.

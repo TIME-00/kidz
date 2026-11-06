@@ -66,7 +66,7 @@ for a separately approved future deployment, not pending work for this project.
 Phases 1 and 2 provide Supabase Auth, scoped management RPCs and live Admin
 role/session checks. See [ADMIN_PHASE2.md](ADMIN_PHASE2.md) for the original
 implementation record and [Current State](docs/current-state-2026-11-06.md) for
-current hosted verification and the confirmed Seller regression blocking merge.
+current hosted verification and the completed Seller regression fix.
 The phase verification records retain their earlier local-only task scope.
 
 ```bash
@@ -75,10 +75,25 @@ supabase db push --linked --dry-run --skip-vault    # review first; requires app
 supabase db push --linked --skip-vault              # future approved changes only
 ```
 
-### Pending Seller fix: `20261106094017_seller_order_access.sql`
+### Seller fix: `20261106094017_seller_order_access.sql`
 
-**Not applied to hosted Supabase. Do not merge to `main` before separate hosted
-approval and verification.** No previous migration is rewritten.
+**Applied and verified on 2026-11-07 (+08:00; 2026-11-06 UTC).** The final dry
+run listed this migration only, with no seeds or roles. A fresh private backup
+was restored into a network-isolated PostgreSQL container: all 49 original
+tables, data fingerprints, roles/permissions, RLS, constraints and functions
+matched; all 3 Storage objects (85,521 bytes) recovered with matching SHA-256.
+
+Post-deployment checks matched the exact rehearsed schema. All pre-existing
+table fingerprints and Buyer/Admin policies were unchanged: 6 Auth accounts,
+6 profiles, 3 Sellers, 4 products, 2 orders and 1 cart. Both existing order lines
+were attributed with valid purchase prices/quantities. Read-only database
+contexts verified all 3 Sellers, all 5 non-Admin accounts, Guest denial and the
+Admin account's session requirement/unchanged RPC permissions. Public HTTP
+checks verified guest rejection and private-schema exclusion. The existing
+Admin has no active session; a fresh Admin UI login was not performed. Active
+Admin and status mutation behavior passed 22 synthetic assertions on the
+isolated restored database, never on existing hosted records. No account,
+password, role, product or order was changed. No previous migration was rewritten.
 
 The migration adds a private, RLS-closed snapshot table, an INSERT trigger and
 server-owned backfill for existing orders, and two public SECURITY INVOKER RPCs:
@@ -105,7 +120,7 @@ model and is intentionally not implemented here. Reports retain the original
 gross item-sales meaning: purchase price times quantity, excluding order-level
 shipping/coupon allocation, with half-open calendar bounds and complete paging.
 
-After separate hosted authorization:
+Completed rollout procedure (reference only; do not reapply the recorded migration):
 
 1. Reconfirm project `jtkqbasbyrejjyoayxmh` and obtain a fresh private backup with
    verified isolated restore and separate Storage bytes if present. Record fresh
@@ -165,11 +180,10 @@ These are pre-existing app behaviours the backend deliberately does not enable:
   through role/session-checked RPCs. The trusted
   operator tool and the separate Phase 2 management plan are documented in
   [ADMIN_PHASES.md](ADMIN_PHASES.md); the implemented management restoration is
-  documented in [ADMIN_PHASE2.md](ADMIN_PHASE2.md). Hosted deployment occurred on November 6; no hosted mutation was made during this documentation review.
-- **Seller order workflow** — locally restored through scoped RPCs; the hosted
-  baseline remains affected until the pending Seller migration is approved and
-  applied. See the pending migration instructions below. No broad Seller order
-  policy is introduced.
+  documented in [ADMIN_PHASE2.md](ADMIN_PHASE2.md). The Admin deployment occurred on November 6. The earlier historical-documentation review itself made no hosted changes.
+- **Seller order workflow** — restored through scoped RPCs; the Seller migration
+  was applied and verified on 2026-11-07 (+08:00). See the rollout record above.
+  No broad Seller order policy was introduced.
 - **`bankingcard` stores a CVV** — `lib/addcard.dart` writes a raw card number
   and CVV. Storing a CVV is prohibited by PCI-DSS. The table is owner-locked and
   must only ever hold synthetic demo values. Replace with a payment provider

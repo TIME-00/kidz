@@ -45,9 +45,11 @@ evidence such as file timestamps).
 - The Admin functionality was rebuilt on Supabase Auth with server-side RLS and
   scoped RPCs on **6 November 2026**. Both migrations are present in the hosted
   migration history, independently checked read-only.
-- **Final integration awaits hosted approval:** the Seller order/report fix has
-  passed local verification. The new Seller migration is unapplied. Shared
-  mixed-Seller order status remains Admin-managed without a fulfillment redesign.
+- **Hosted Seller integration verified on 7 November 2026 (+08:00):** the exact
+  Seller migration was applied after a fresh private backup and isolated restore.
+  Existing account/business fingerprints are unchanged; scoped Seller reads,
+  Buyer isolation and Admin permissions were verified. Shared mixed-Seller order
+  status remains Admin-managed without a fulfillment redesign. See Current State §8.
 
 ## Related technical documents (repository root)
 

@@ -35,11 +35,11 @@ The current application reads its Supabase settings at build time; no key
 literal is present in the current source tree. A legacy public `anon` key remains
 in the original 2025 Git history; see the [evidence register](docs/history/01-evidence-and-timeline.md#15-register-of-information-that-could-not-be-verified).
 
-**Integration status:** the Seller order/report fix is implemented and tested
-locally. Migration `20261106094017_seller_order_access.sql` still needs separate
-hosted approval and verification before the final `main` merge. Mixed-Seller
+**Integration status:** the Seller migration `20261106094017_seller_order_access.sql`
+was applied and verified on 7 November 2026 (+08:00), after a fresh backup and
+isolated restore test. Existing accounts and business records are unchanged. Mixed-Seller
 orders expose only the caller's items; their shared status remains Admin-managed.
-See [Current State](docs/current-state-2026-11-06.md#8-local-seller-fix-pending-hosted-approval).
+See [Current State](docs/current-state-2026-11-06.md#8-seller-fix-and-verified-hosted-integration).
 
 Run with:
 

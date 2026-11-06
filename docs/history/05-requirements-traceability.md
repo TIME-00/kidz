@@ -6,7 +6,8 @@ This matrix compares three things for each requirement:
   prototype, see [Initial Project Plan](02-initial-project-plan.md);
 - the **improvement requirements**: the June 2026 recommendations acted on in
   July 2026, see [July 2026 Improvement Plan](04-july-2026-improvement-plan.md);
-- the **implementation verified on 2026-11-06** (commit `78efb02`).
+- the **implementation verified on 2026-11-06** (commit `78efb02`), with dated
+  Seller-fix/hosted-deployment addenda (E29, E30).
 
 **Status** is one of PLANNED, IMPLEMENTED, MODIFIED or UNVERIFIED, as defined in
 [Evidence Register §1.1](01-evidence-and-timeline.md#11-status-and-provenance-labels).
@@ -44,8 +45,8 @@ These were not in the initial plan. They first appear in the legacy archive (E08
 | ID | Requirement as first implemented | Improvement requirement | Actual implementation (2026-11-06) | Status | Deviations and explanation | Evidence |
 | --- | --- | --- | --- | --- | --- | --- |
 | TR-17 | Guest browsing | — | Guest home and details. Products publicly readable | **IMPLEMENTED** | — | `lib/guest_home.dart`; migration "products: public read" |
-| TR-18 | Seller registration and dashboard (orders containing own products, status updates) | — | Locally: scoped own-item projection and guarded single-Seller status RPC. Buyer policies unchanged | **MODIFIED** | Mixed-Seller orders expose own items only and retain Admin-managed shared status; no fulfillment model redesign. Hosted migration pending | `lib/seller_orders.dart`; `lib/seller_dashboard.dart`; `20261106094017_seller_order_access.sql`; E29 |
-| TR-19 | Seller sales reports (daily, monthly, yearly, Top 10) | — | Locally: server-scoped purchase snapshots, integer-cent aggregation, calendar ranges and complete paging | **IMPLEMENTED locally; hosted UNVERIFIED** | Historical ownership that cannot be attributed is not guessed. Missing purchase prices produce an error. No current-catalogue repricing | `lib/report.dart`; `lib/seller_orders.dart`; E29 |
+| TR-18 | Seller registration and dashboard (orders containing own products, status updates) | — | Scoped own-item projection and guarded single-Seller status RPC; hosted migration verified 2026-11-07 (+08:00). Buyer policies unchanged | **MODIFIED** | Mixed-Seller orders expose own items only and retain Admin-managed shared status; no fulfillment model redesign. Hosted migration applied/verified (E30) | `lib/seller_orders.dart`; `lib/seller_dashboard.dart`; `20261106094017_seller_order_access.sql`; E29 |
+| TR-19 | Seller sales reports (daily, monthly, yearly, Top 10) | — | Server-scoped purchase snapshots, integer-cent aggregation, calendar ranges and complete paging | **IMPLEMENTED; hosted migration verified** | Historical ownership that cannot be attributed is not guessed. Missing purchase prices produce an error. No current-catalogue repricing | `lib/report.dart`; `lib/seller_orders.dart`; E29, E30 |
 | TR-20 | Admin dashboard (counts and chart) | IR-02 | Guarded by `AdminGate`. Exact HEAD/count queries. Refreshes after management actions | **MODIFIED** | Counts are now exact rather than the length of a capped result page | `lib/admin_dashboard.dart`; E18 |
 | TR-21 | Admin: Manage Users (delete profile row) | IR-02 | `admin_delete_record` RPC: preview, typed `DELETE` confirmation, deletion of the **Auth account** with cascades. Orders retained with `user_id` set to NULL. Admin accounts protected | **MODIFIED** | The original operation deleted only `public.users` and left the Auth account. The replacement deletes the account but keeps order history | `lib/manage_users.dart`; `20261106034711_admin_management.sql`; `ADMIN_PHASE2.md` |
 | TR-22 | Admin: Manage Sellers (list) | — | Same list, guarded, reads all pages | **IMPLEMENTED** | No Seller-approval workflow existed originally, and none was added | `lib/manage_sellers.dart` |
@@ -58,7 +59,7 @@ These were not in the initial plan. They first appear in the legacy archive (E08
 | --- | --- | --- | --- | --- | --- | --- |
 | TR-25 | Credentials hard-coded in `main.dart` (K-01) | IR-01 | `--dart-define` `SUPABASE_URL` / `SUPABASE_PUBLISHABLE_KEY`. The app refuses to start without them | **IMPLEMENTED** (July 2026) | The 2025 key in public history is a legacy public `anon` key, not a privileged key (E28). Its different legacy project hostname does not resolve; deletion/revocation remain **UNVERIFIED** (U-07) | `4285622`; `lib/supabase_config.dart`; `lib/main.dart` |
 | TR-26 | Plaintext Admin table (K-02) | IR-02 | July 2026: table locked (RLS, no policies). November 2026: Auth-only login, `app_metadata.role`, server-verified sessions, operator tool for provisioning | **MODIFIED** (July 2026: locked). **IMPLEMENTED** (November 2026) | The legacy table is kept, locked, rather than dropped | `4285622`; `lib/login.dart`; `tools/admin-account.ps1`; E18 |
-| TR-27 | Client-side authorisation only (K-05) | IR-04 | RLS on all tables. Admin reads use live role and session checks (`kidz_private.is_admin()`) | **IMPLEMENTED** | Admin writes and local Seller projection/status use scoped RPCs, with no broad order SELECT/UPDATE grants. Seller snapshots have RLS and no client grants | migrations `20260727000000`, `20261106030934`, `20261106034711`; pending `20261106094017` |
+| TR-27 | Client-side authorisation only (K-05) | IR-04 | RLS on all tables. Admin reads use live role and session checks (`kidz_private.is_admin()`) | **IMPLEMENTED** | Admin writes and Seller projection/status use scoped RPCs, with no broad order SELECT/UPDATE grants. Seller snapshots have RLS and no client grants | migrations `20260727000000`, `20261106030934`, `20261106034711`; `20261106094017` (applied/verified, E30) |
 | TR-28 | CVV and card number in plaintext (K-03) | IR-03 | Unchanged in the client. Table owner-locked | **PLANNED** | Deferred (`SUPABASE.md`) | `lib/addcard.dart:63` |
 | TR-29 | Missing assets (K-10) | IR-05 | 15 assets restored and declared. `default.jpg` used as a typed fallback | **MODIFIED** | `placeholder.jpg` was not added. The fallback design changed instead | `4c4b82b`; `077eca7`; `lib/product_image.dart` |
 | TR-30 | Account deletion crashes or leaves partial state (K-04, K-06, K-07) | IR-06 | Self-service deletion **disabled** (informational dialog). Edge Function planned but not deployed. Admin-initiated deletion available through RPC (TR-21) | **MODIFIED** | The crash paths were removed by disabling the feature, not by repairing it | `42c5181`; `lib/account.dart:142`; `SUPABASE.md` |
@@ -77,11 +78,11 @@ These were not in the initial plan. They first appear in the legacy archive (E08
 | TR-43 | Default metadata (K-19) | IR-18 | `pubspec.yaml` description unchanged. README replaced by this documentation change | **MODIFIED** (README only) | `pubspec.yaml:2` still says "A new Flutter project." | `pubspec.yaml`; `README.md` |
 | TR-44 | Android release builds lacked INTERNET permission (found in July 2026 testing) | — (not in the June recommendations) | Permission declared in the main manifest | **IMPLEMENTED** | Found during emulator validation, not planned in advance | `b4494f9`; `android/app/src/main/AndroidManifest.xml` |
 
-**Merge gate:** the documented baseline defects in TR-18/TR-19 have a verified
-local fix (E29). New hosted migration approval and verification are required
-before merging to `main`; independent mixed-Seller fulfillment remains outside
-this fix. Historical source/line citations remain at the stated baseline unless
-this new migration or E29 is cited.
+**Integration gate satisfied:** the documented baseline defects in TR-18/TR-19
+have a verified local fix (E29), and the authorized hosted migration passed
+backup recovery, schema/data and authorization checks (E30). Independent
+mixed-Seller fulfillment remains outside this fix. Historical source/line citations remain at the stated baseline unless
+this new migration, E29 or E30 is cited.
 
 ## 5.4 Summary
 
@@ -90,7 +91,7 @@ Those rows appear under both labels, marked with the part concerned.
 
 | Status | IDs |
 | --- | --- |
-| IMPLEMENTED | TR-02, TR-03 (cart), TR-09, TR-12, TR-13, TR-15 (rating display), TR-17, TR-19 (local), TR-22, TR-25, TR-26 (November 2026), TR-27, TR-32, TR-40 (Buyer/Seller), TR-42, TR-44 |
+| IMPLEMENTED | TR-02, TR-03 (cart), TR-09, TR-12, TR-13, TR-15 (rating display), TR-17, TR-19, TR-22, TR-25, TR-26 (November 2026), TR-27, TR-32, TR-40 (Buyer/Seller), TR-42, TR-44 |
 | MODIFIED | TR-01, TR-04, TR-05, TR-06, TR-07, TR-08, TR-18, TR-20, TR-21, TR-23, TR-24, TR-26 (July 2026), TR-29, TR-30, TR-33, TR-35 (Admin/Seller services), TR-37 (Admin helpers), TR-40 (Admin), TR-43 |
 | PLANNED (not implemented as of 2026-11-06) | TR-03 (sample item), TR-08 / TR-28 (CVV), TR-10, TR-11, TR-14, TR-15 (reviews), TR-16, TR-31, TR-34, TR-35, TR-36, TR-37, TR-38, TR-39, TR-41 |
-| UNVERIFIED | Hosted Seller fix pending its new migration. Original 2025 backend behavior. Client-key revocation in TR-25. All items in [Register §1.5](01-evidence-and-timeline.md#15-register-of-information-that-could-not-be-verified) |
+| UNVERIFIED | Fresh hosted UI login/status mutation was not performed; scoped DB contexts and isolated synthetic mutations were verified (E30). Original 2025 backend behavior. Client-key revocation in TR-25. All items in [Register §1.5](01-evidence-and-timeline.md#15-register-of-information-that-could-not-be-verified) |
