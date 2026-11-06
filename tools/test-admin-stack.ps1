@@ -70,8 +70,14 @@ try {
         throw 'Isolated Supabase startup failed. No private startup output was logged.'
     }
     Write-Output 'Local stack ready. Startup keys were not logged.'
-    & supabase test db --local --workdir $testRoot
-    if ($LASTEXITCODE -ne 0) { throw 'Isolated full-stack pgTAP tests failed.' }
+    # CLI progress is native stderr on Windows PowerShell, not a test failure.
+    $ErrorActionPreference = 'Continue'
+    try {
+        $testOutput = & supabase test db --local --workdir $testRoot 2>&1
+        $testExit = $LASTEXITCODE
+    } finally { $ErrorActionPreference = 'Stop' }
+    $testOutput | ForEach-Object { Write-Output $_.ToString() }
+    if ($testExit -ne 0) { throw 'Isolated full-stack pgTAP tests failed.' }
     & node (Join-Path $projectRoot 'tools/admin-db/fullstack.mjs')
     if ($LASTEXITCODE -ne 0) { throw 'Isolated full-stack Auth/REST/Storage checks failed.' }
     $passed = $true

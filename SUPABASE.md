@@ -75,6 +75,71 @@ supabase db push --linked --dry-run --skip-vault    # review first; requires app
 supabase db push --linked --skip-vault              # future approved changes only
 ```
 
+### Pending Seller fix: `20261106094017_seller_order_access.sql`
+
+**Not applied to hosted Supabase. Do not merge to `main` before separate hosted
+approval and verification.** No previous migration is rewritten.
+
+The migration adds a private, RLS-closed snapshot table, an INSERT trigger and
+server-owned backfill for existing orders, and two public SECURITY INVOKER RPCs:
+`seller_order_page` and `seller_set_order_status`. Privileged implementations
+remain private with an empty search path. A live confirmed Auth session and a
+Seller registration are required; editable metadata cannot assign ownership.
+Buyer policies and all Admin permissions/functions remain unchanged.
+
+Snapshots whitelist item fields and bind ownership to the original Auth user,
+not a reusable product/Seller ID. Neither buyer IDs, delivery addresses, payment
+fields, other Sellers' items nor whole-order totals are returned. Product edits
+or later deletion do not change captured sales. Historical lines whose product
+ownership cannot be established from the surviving catalogue stay unattributed;
+review those before relying on historical report completeness. Missing/invalid
+purchase prices are reported as incomplete data, never replaced by current prices.
+No existing order JSON, totals, product records or order-status columns are rewritten.
+
+Status updates use the original three status values and exact `updated_at`
+checks. They are allowed only if every captured item belongs to the calling
+Seller and the source order items have not changed. Shared or unattributed
+orders are read-only in the Seller workflow; Admin retains global status control.
+Independent mixed-Seller fulfillment would require a separately approved status
+model and is intentionally not implemented here. Reports retain the original
+gross item-sales meaning: purchase price times quantity, excluding order-level
+shipping/coupon allocation, with half-open calendar bounds and complete paging.
+
+After separate hosted authorization:
+
+1. Reconfirm project `jtkqbasbyrejjyoayxmh` and obtain a fresh private backup with
+   verified isolated restore and separate Storage bytes if present. Record fresh
+   data counts/fingerprints and review legacy attribution coverage; an older
+   backup may predate subsequent account creation.
+2. Link only this review checkout if needed, then inspect history and dry-run:
+
+   ```powershell
+   supabase link --project-ref jtkqbasbyrejjyoayxmh
+   supabase migration list --linked
+   supabase db push --linked --dry-run --skip-vault
+   ```
+
+   Expect the baseline and both Admin migrations applied and exactly
+   `20261106094017_seller_order_access.sql` pending. Stop for any mismatch.
+3. Only with hosted approval and the verified backup, apply:
+
+   ```powershell
+   supabase db push --linked --skip-vault
+   ```
+
+   Do not include seed/role flags, credentials, or any database reset.
+4. Verify migration history, trigger/backfill coverage, closed snapshot ACL/RLS,
+   private-schema exclusion from the Data API, public wrapper grants and unchanged
+   Buyer/Admin policies. Compare the original data counts/fingerprints; snapshot
+   rows are new private derived data. Use synthetic staging fixtures for mutations,
+   never destructive tests against existing hosted accounts/orders.
+5. Verify fresh Seller A/B sessions, private-field redaction, single-Seller status
+   changes, mixed-order denial, historical-price reports, and Buyer/Admin access.
+   Only after that verification may the integration branch be merged into `main`.
+
+Local reproduction: `node tools/admin-db/seller-test.mjs` (PGlite) and
+`./tools/test-admin-stack.ps1` (fresh unlinked Docker stack; pgTAP + actual HTTP).
+
 `supabase/seed.sql` holds synthetic demo products and contains no credentials.
 It runs on `supabase db reset` (local only), not on `db push`. Test accounts are
 created through the app's normal registration screen.
@@ -101,7 +166,10 @@ These are pre-existing app behaviours the backend deliberately does not enable:
   operator tool and the separate Phase 2 management plan are documented in
   [ADMIN_PHASES.md](ADMIN_PHASES.md); the implemented management restoration is
   documented in [ADMIN_PHASE2.md](ADMIN_PHASE2.md). Hosted deployment occurred on November 6; no hosted mutation was made during this documentation review.
-- **Seller order workflow — CONFIRMED BUG:** current order RLS excludes customer orders from the product-owning Seller's dashboard and sales reports; Seller status updates affect no rows. This is a `main` merge blocker requiring a separately approved scoped fix; see [Current State](docs/current-state-2026-11-06.md#seller-order-visibility-confirmed-bug).
+- **Seller order workflow** — locally restored through scoped RPCs; the hosted
+  baseline remains affected until the pending Seller migration is approved and
+  applied. See the pending migration instructions below. No broad Seller order
+  policy is introduced.
 - **`bankingcard` stores a CVV** — `lib/addcard.dart` writes a raw card number
   and CVV. Storing a CVV is prohibited by PCI-DSS. The table is owner-locked and
   must only ever hold synthetic demo values. Replace with a payment provider

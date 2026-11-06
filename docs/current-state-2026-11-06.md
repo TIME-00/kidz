@@ -18,7 +18,7 @@
 
 ```mermaid
 flowchart LR
-  subgraph Client["Flutter client (lib/, 42 Dart files)"]
+  subgraph Client["Flutter client (lib/, 43 Dart files)"]
     UI["Buyer / Seller / Guest screens"]
     ADM["Admin screens wrapped in AdminGate"]
     CFG["SupabaseConfig (--dart-define)"]
@@ -27,8 +27,8 @@ flowchart LR
   subgraph Supabase
     AUTH["Supabase Auth (email/password)"]
     REST["PostgREST + RLS"]
-    RPC["public.admin_* RPCs (SECURITY INVOKER)"]
-    PRIV["kidz_private (SECURITY DEFINER bodies, audit)"]
+    RPC["public.admin_* / seller_* RPCs (SECURITY INVOKER)"]
+    PRIV["kidz_private (guarded bodies, audit, snapshots)"]
     ST["Storage bucket product-images"]
   end
   OP["tools/admin-account.ps1 (trusted operator, Auth Admin API)"]
@@ -45,8 +45,8 @@ flowchart LR
 | --- | --- |
 | Client | Flutter/Dart (`sdk ^3.6.1`), `supabase_flutter ^2.10.3`, `provider`, `lottie`, `fl_chart`, `image_picker`, `intl`, `uuid`, `shared_preferences`. Imperative `Navigator` routing from `MaterialApp(home: SplashScreen)` |
 | Configuration | `lib/supabase_config.dart` reads `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` at build time. If either is missing, `MissingConfigApp` names the missing key and never shows a value. No credential is committed |
-| Backend schema | Three migrations: `20260727000000_kidz_initial_schema.sql` (July 2026), `20261106030934_admin_read_access.sql` and `20261106034711_admin_management.sql` (November 2026) |
-| Tests | `test/` (9 test files plus one support file), `supabase/tests/` (3 pgTAP files), `tools/admin-db/` (portable PGlite and full-stack harnesses), `tools/admin-account.Tests.ps1` (Pester) |
+| Backend schema | Three applied migrations: `20260727000000_kidz_initial_schema.sql` (July 2026), `20261106030934_admin_read_access.sql` and `20261106034711_admin_management.sql` (November 2026); fourth Seller migration is local/pending, see §8 |
+| Tests | `test/` (10 test files plus one support file), `supabase/tests/` (4 pgTAP files), `tools/admin-db/` (portable PGlite and full-stack harnesses), `tools/admin-account.Tests.ps1` (Pester) |
 | Operator tooling | `tools/admin-account.ps1`: create, inspect, assign-role and reset-password for a dedicated Admin. Masked prompts. Refuses publishable keys. Pinned to one project |
 
 ## 2. Supabase Auth
@@ -84,6 +84,7 @@ RLS is enabled on every application table.
 | `bankingcard` | Owner only. Synthetic-use restriction is documented, not enforced by RLS; CVV issue remains open | initial schema |
 | `admin` (legacy) | RLS on, **no policies**: unreachable | initial schema |
 | `kidz_private.admin_audit` | No client access | Phase 2 |
+| `kidz_private.seller_order_snapshots` (local/pending) | RLS on, no client table access; private server routines only | Seller fix, E29 |
 | Storage `product-images` | Public read. Upload only by registered Sellers under `products/`. No client update/delete | initial schema |
 
 There are no broad Admin INSERT/UPDATE/DELETE policies. Admin writes go only
@@ -160,7 +161,8 @@ reapply the already-recorded migrations.
 
 ### Seller order visibility: CONFIRMED BUG
 
-**Final `main` merge is blocked pending a separately approved minimal fix.**
+**The hosted baseline still has this bug. A local fix is now verified in §8;
+its new hosted migration requires separate approval and verification before merge.**
 Hosted catalog inspection (E26) shows Buyer-owner SELECT/UPDATE predicates plus
 an Admin SELECT policy, with no Seller order policy. `seller_dashboard.dart`
 queries orders before filtering their product IDs; `report_page.dart` delegates
@@ -180,8 +182,8 @@ ineffective, and daily/monthly/yearly and Top-10 sales results are empty or
 understated. This mismatch exists in the July owner-only schema and is preserved
 by the November Admin migrations. The original 2025 backend RLS is unavailable,
 so previous live behavior cannot be proven. No application or hosted RLS change
-was made here; a fix must preserve Buyer isolation and scope Seller access to
-the intended products.
+was made during that documentation investigation. The subsequent local fix below
+preserves Buyer isolation and scopes Seller access to its own purchase snapshots.
 
 ## 7. Known limitations carried forward
 
@@ -189,7 +191,8 @@ the intended products.
   Documentation permits synthetic values only; owner-only RLS does not enforce
   synthetic data or make storage of real card credentials safe.
 - Seller order visibility/status handling and sales reports have a **CONFIRMED
-  BUG** under current order RLS (E26, E27). See the merge-blocking reproduction above.
+  BUG** on the hosted baseline (E26, E27). The verified local fix awaits its new
+  migration; see §8.
 - Self-service account deletion is disabled until a server-side function exists.
 - No payment gateway, reviews, recommendations, central router, typed models,
   `ThemeData`, persisted Wishlist or Notifications.
@@ -200,3 +203,41 @@ the intended products.
   which is absent from accessible projects. No historical key was used in a
   request. Deletion/revocation remain unverified (U-07); no active privileged
   credential was identified. See [Supabase API key types](https://supabase.com/docs/guides/getting-started/api-keys).
+
+## 8. Local Seller fix (pending hosted approval)
+
+The original three hosted migrations remain applied. New migration
+`20261106094017_seller_order_access.sql` is **local and unapplied**, and `main`
+remains unmerged (E29). No existing migration or fulfillment status column changed.
+
+- `seller_order_page` returns only the registered caller's whitelisted item
+  snapshots. Customer identifiers/addresses/payment data, unrelated Seller items
+  and whole-order totals are excluded. Keyset paging avoids capped report totals.
+- A private server-captured ledger preserves ownership and purchase prices across
+  later product edits/deletion, including reused product/Seller IDs. Legacy
+  ownership missing from the surviving catalogue cannot be guessed or restored
+  automatically; review coverage before using historical totals.
+- `seller_set_order_status` supports Packaging/Shipping/Delivering only when all
+  items belong to the caller, with stale/source-change protection. Mixed or
+  unattributed orders remain Admin-managed. Independent per-Seller mixed-order
+  fulfillment is **not implemented**; it needs a separate model decision.
+- Daily/monthly/yearly and Top-10 reports use purchase cents and quantities, not
+  current catalogue prices. Half-open calendar bounds include fractional seconds.
+  Totals remain gross item sales, without inventing shipping/coupon allocations.
+  Incomplete price/quantity snapshots cause a visible report error rather than
+  fabricated sales. Buyer history and highest Admin permissions are preserved.
+
+| Local fix check | Result |
+| --- | --- |
+| Full Flutter suite | PASS: 149 tests (12 new) |
+| Isolated Seller SQL scenarios | PASS: 20 |
+| Existing Admin SQL regression scenarios with all four migrations | PASS: 29 |
+| Fresh real Supabase pgTAP | PASS: 116 assertions in 4 files |
+| Actual isolated Auth/REST/Storage | PASS: 47 checks, including Seller isolation/status/concurrency |
+| Web and Android debug builds | PASS with synthetic configuration |
+| Full analysis | NOT CLEAN: 0 errors, 11 existing warnings, 89 informational findings |
+| Hosted Seller migration and hosted end-to-end behavior | UNVERIFIED / not attempted; separate approval required |
+
+See [SUPABASE.md](../SUPABASE.md#pending-seller-fix-20261106094017_seller_order_accesssql)
+for exact backup, dry-run, application and verification steps. These are future
+instructions, not permission to mutate the hosted project during local work.

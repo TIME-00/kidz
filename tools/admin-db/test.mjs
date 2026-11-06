@@ -241,10 +241,10 @@ test('Admin cannot turn scoped RPCs into unrelated table or SQL operations',asyn
 let failed = 0;
 try {
   await db.exec(await sql('tools/admin-db/bootstrap.sql'));
-  for(const file of ['20260727000000_kidz_initial_schema.sql','20261106030934_admin_read_access.sql','20261106034711_admin_management.sql']) {
+  for(const file of ['20260727000000_kidz_initial_schema.sql','20261106030934_admin_read_access.sql','20261106034711_admin_management.sql','20261106094017_seller_order_access.sql']) {
     await db.exec(await sql(`supabase/migrations/${file}`));
   }
-  console.log('PASS: all three migrations loaded unchanged into isolated Postgres');
+  console.log('PASS: all four migrations loaded unchanged into isolated Postgres');
   for(const {name,run} of tests) {
     await db.exec('begin');
     try { await fixtures(); await run(); console.log(`PASS: ${name}`); }

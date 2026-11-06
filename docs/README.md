@@ -45,9 +45,9 @@ evidence such as file timestamps).
 - The Admin functionality was rebuilt on Supabase Auth with server-side RLS and
   scoped RPCs on **6 November 2026**. Both migrations are present in the hosted
   migration history, independently checked read-only.
-- **Final integration is blocked:** Seller order visibility/status changes and
-  sales reports fail for other buyers' orders under current RLS. The issue is
-  reproduced with isolated synthetic fixtures; a separate minimal fix needs approval.
+- **Final integration awaits hosted approval:** the Seller order/report fix has
+  passed local verification. The new Seller migration is unapplied. Shared
+  mixed-Seller order status remains Admin-managed without a fulfillment redesign.
 
 ## Related technical documents (repository root)
 

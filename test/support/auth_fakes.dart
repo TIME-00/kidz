@@ -49,6 +49,8 @@ class StoreAuthFake extends Fake implements GoTrueClient {
   @override
   Session? get currentSession => activeSession;
   @override
+  User? get currentUser => activeSession?.user;
+  @override
   Stream<AuthState> get onAuthStateChange => events.stream;
   @override
   Future<UserResponse> getUser([String? jwt]) async {
@@ -127,6 +129,25 @@ class _Query extends Fake implements SupabaseQueryBuilder {
 class _Result<T> extends Fake implements PostgrestFilterBuilder<T> {
   _Result(this.value);
   final FutureOr<T> Function() value;
+  @override
+  PostgrestFilterBuilder<T> eq(String column, Object value) =>
+      _Result(() async {
+        final items = await this.value() as List;
+        return items
+            .where((row) => row[column] == value)
+            .toList()
+            .cast<Map<String, dynamic>>() as T;
+      });
+
+  @override
+  PostgrestTransformBuilder<Map<String, dynamic>?> maybeSingle() =>
+      _Result(() async {
+        final items = await value() as List;
+        return items.isEmpty
+            ? null
+            : Map<String, dynamic>.from(items.single as Map);
+      });
+
   @override
   PostgrestTransformBuilder<T> order(String column,
           {bool ascending = false,

@@ -96,8 +96,42 @@ try {
   const otherProduct=await insert('products',{seller_id:otherSeller.id,product_name:'Synthetic B',product_price:20},other.token);
   await insert('cart',{user_id:buyer.id,product_id:product.id,quantity:1},buyer.token);
   await insert('bankingcard',{user_id:buyer.id,cardholdername:'Synthetic',cardnumber:'synthetic'},buyer.token);
-  const items=JSON.stringify([{product_id:product.id,product_name:'Synthetic A',product_images:[imageURL],quantity:1}]);
+  const items=JSON.stringify([{product_id:product.id,product_name:'Synthetic A',product_images:[imageURL],price:12,quantity:1}]);
   const order=await insert('orders',{id:randomUUID(),user_id:buyer.id,total_price:12,status:'Packaging',order_items:items},buyer.token);
+  // New Seller scope regression cases use only this unlinked synthetic project.
+  const salesBuyer=await account('sales-buyer');
+  const exclusive=await insert('orders',{id:randomUUID(),user_id:salesBuyer.id,
+    order_items:[{product_id:product.id,product_name:'Historical A',price:12,quantity:2}],
+    total_price:24,delivery_address:'PRIVATE CUSTOMER ADDRESS'},salesBuyer.token);
+  const mixed=await insert('orders',{id:randomUUID(),user_id:salesBuyer.id,
+    order_items:JSON.stringify([{product_id:product.id,product_name:'Historical A',price:10,quantity:2},
+      {product_id:otherProduct.id,product_name:'Historical B',price:20,quantity:3}]),
+    total_price:80,delivery_address:'PRIVATE CUSTOMER ADDRESS'},salesBuyer.token);
+  const sellerRows=(await okRpc('seller_order_page',{},seller.token,'Seller order projection')).orders;
+  const sellerMixed=sellerRows.find(o=>o.id===mixed.id);
+  check(sellerMixed?.order_items.length===1 && sellerMixed.order_items[0].product_id===product.id,
+    'Seller A sees only their items in a real mixed order RPC');
+  check(!('user_id' in sellerMixed) && !('delivery_address' in sellerMixed) && !('total_price' in sellerMixed),
+    'Seller projection excludes private customer fields and unrelated totals');
+  const otherRows=(await okRpc('seller_order_page',{},other.token,'Other Seller projection')).orders;
+  check(!otherRows.some(o=>o.id===exclusive.id) && otherRows.find(o=>o.id===mixed.id)?.order_items[0].product_id===otherProduct.id,
+    'Seller B is isolated from Seller A exclusive order and items');
+  for(const token of [anon,buyer.token])check([401,403].includes((await rpc('seller_order_page',{},token)).status),
+    'guest or Buyer cannot invoke Seller projection');
+  const sellerChanged=await okRpc('seller_set_order_status',{p_id:exclusive.id,p_status:'Shipping',p_expected_updated_at:exclusive.updated_at},seller.token,'Seller exclusive status');
+  check(sellerChanged.status==='Shipping','Seller updates wholly owned order through real RPC');
+  for(const token of [seller.token,other.token])check((await rpc('seller_set_order_status',
+    {p_id:mixed.id,p_status:'Shipping',p_expected_updated_at:mixed.updated_at},token)).status===403,
+    'both Sellers are denied changing a shared mixed-order status');
+  check((await rpc('seller_set_order_status',{p_id:exclusive.id,p_status:'Delivering',p_expected_updated_at:exclusive.updated_at},seller.token)).status===409,
+    'Seller stale status update is an explicit HTTP conflict');
+  const sellerConcurrent=await Promise.all(['Packaging','Delivering'].map(p_status=>rpc('seller_set_order_status',
+    {p_id:exclusive.id,p_status,p_expected_updated_at:sellerChanged.updated_at},seller.token)));
+  check(sellerConcurrent.filter(r=>r.status===200).length===1 && sellerConcurrent.filter(r=>r.status===409).length===1,
+    'concurrent Seller status requests allow one update only');
+  await success(`/rest/v1/products?id=eq.${product.id}`,{method:'PATCH',token:seller.token,body:{product_price:999}},'Change current catalogue price');
+  check((await okRpc('seller_order_page',{},seller.token,'Historic price')).orders.find(o=>o.id===exclusive.id).order_items[0].price_cents===1200,
+    'actual purchase snapshot price survives catalogue price changes');
   check((await list('orders',seller.token,'select=id')).length===0,'Seller cannot see Buyer order history');
   for(const [name,token] of [['Buyer',buyer.token],['Seller',seller.token],['Guest',anon]]) {
     const result=await rpc('admin_preview_delete',{p_kind:'product',p_id:product.id},token);
@@ -123,6 +157,8 @@ try {
   check((await list('orders',admin.token,`select=order_items&id=eq.${order.id}`))[0].order_items===items,'historical order items remain unchanged');
   const beforeImage=await fetch(imageURL);
   check(beforeImage.ok && Buffer.from(await beforeImage.arrayBuffer()).equals(image),'actual image bytes survive product deletion');
+  check((await okRpc('seller_order_page',{},seller.token,'Deleted product history')).orders.some(o=>o.id===exclusive.id),
+    'Seller history survives actual product deletion');
   const buyerPreview=await remove('user',buyer.id,admin);
   check(Number(buyerPreview.orders_retained)===1 && Number(buyerPreview.cards_deleted)===1,'account preview discloses retained orders and private card cleanup');
   check((await request(`/auth/v1/admin/users/${buyer.id}`,{key:server,token:server})).status===404,'real GoTrue no longer finds the deleted Auth account');
@@ -136,6 +172,8 @@ try {
   check(oldBuyer.status===401 || (oldBuyer.status===200 && oldBuyer.data.length===0),'deleted Buyer old token cannot read retained orders');
   const sellerPreview=await remove('user',seller.id,admin);
   check(Number(sellerPreview.products_deleted)===1 && Number(sellerPreview.images_retained)===1,'seller deletion handles remaining products and retained images');
+  check([401,403].includes((await rpc('seller_order_page',{},seller.token)).status),
+    'deleted Seller account cannot use an already-issued token on Seller RPCs');
   const afterImage=await fetch(imageURL);
   check(afterImage.ok && Buffer.from(await afterImage.arrayBuffer()).equals(image),'actual image bytes survive deleted-owner reassignment');
   check((await list('products',other.token,'select=id')).some(p=>p.id===otherProduct.id),'other Seller product is unaffected');

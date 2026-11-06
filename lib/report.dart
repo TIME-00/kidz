@@ -1,206 +1,124 @@
-import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'seller_orders.dart';
 
-/// Generates only the sales report for the current user (as a seller)
+/// Uses original purchase prices, not today's catalogue, and server-owned scope.
 Future<Map<String, dynamic>> generateAllInvolvingMeReport({
   required String reportType,
   required String selectedDate,
   required String myUserId,
+  SupabaseClient? client,
 }) async {
-  final supabase = Supabase.instance.client;
+  final dates = sellerReportDates(reportType, selectedDate);
+  final orders = await SellerOrders(client ?? Supabase.instance.client)
+      .read(expectedUserId: myUserId, start: dates.$1, end: dates.$2);
+  return buildSellerSalesReport(orders, reportType);
+}
 
-  DateTime startTime;
-  DateTime endTime;
-  if (reportType == "daily") {
-    startTime = DateTime.parse("$selectedDate 00:00:00");
-    endTime = DateTime.parse("$selectedDate 23:59:59");
-  } else if (reportType == "monthly") {
-    final parts = selectedDate.split('-');
-    final year = int.parse(parts[0]);
-    final month = int.parse(parts[1]);
-    startTime = DateTime(year, month, 1, 0, 0, 0);
-    endTime = DateTime(year, month + 1, 1, 0, 0, 0)
-        .subtract(const Duration(seconds: 1));
-  } else if (reportType == "yearly") {
-    final year = int.parse(selectedDate);
-    startTime = DateTime(year, 1, 1, 0, 0, 0);
-    endTime = DateTime(year, 12, 31, 23, 59, 59);
-  } else {
-    return {};
+/// Half-open calendar ranges include fractional seconds at the period's end.
+(DateTime, DateTime) sellerReportDates(String type, String value) {
+  final parts = value.split('-').map(int.parse).toList();
+  final year = parts.first;
+  if (type == 'yearly') return (DateTime(year), DateTime(year + 1));
+  final month = parts[1];
+  if (type == 'monthly') {
+    return (DateTime(year, month), DateTime(year, month + 1));
   }
-
-  final sellersResponse = await supabase.from('sellers').select('id, user_id');
-
-  if (sellersResponse == null || sellersResponse.isEmpty) {
-    return _emptySalesReport(reportType);
+  if (type == 'daily') {
+    final day = parts[2];
+    return (DateTime(year, month, day), DateTime(year, month, day + 1));
   }
+  throw const FormatException('Unsupported report period.');
+}
 
-  final Map<String, String> sellerIdMap = {
-    for (final s in sellersResponse) s['id'] as String: s['user_id'] as String
-  };
-
-  final productsResponse = await supabase
-      .from('products')
-      .select('id, product_name, product_price, seller_id');
-
-  if (productsResponse == null || productsResponse.isEmpty) {
-    return {"error": "No product data available."};
-  }
-
-  final productMap = <String, Map<String, dynamic>>{
-    for (final p in productsResponse)
-      p['id'] as String: {
-        'name': p['product_name'] ?? 'Unknown Product',
-        'price': (p['product_price'] ?? 0).toDouble(),
-        'seller_id': p['seller_id'] ?? '',
-      },
-  };
-
-  final ordersResponse = await supabase
-      .from('orders')
-      .select('order_date, total_price, order_items, user_id')
-      .gte('order_date', startTime.toIso8601String())
-      .lte('order_date', endTime.toIso8601String());
-
-  if (ordersResponse == null || ordersResponse.isEmpty) {
-    return _emptySalesReport(reportType);
-  }
-
-  double totalSales = 0.0;
-  final Map<String, dynamic> salesMap = {};
-
-  for (final order in ordersResponse) {
-    final orderItemsJson = order['order_items'] as String?;
-    if (orderItemsJson == null || orderItemsJson.isEmpty) continue;
-    List<dynamic> orderItems;
-    try {
-      orderItems = jsonDecode(orderItemsJson);
-    } catch (e) {
-      continue;
-    }
-
-    for (final item in orderItems) {
-      final pid = item['product_id'] as String?;
-      final qty = (item['quantity'] ?? 0) as int;
-      if (pid == null || !productMap.containsKey(pid)) continue;
-
-      final productInfo = productMap[pid]!;
-      final productName = productInfo['name'] as String;
-      final productPrice = productInfo['price'] as double;
-      final sellerId = productInfo['seller_id'] as String;
-      final itemTotalPrice = productPrice * qty;
-
-      final isMyProduct = (sellerIdMap.containsKey(sellerId) &&
-          sellerIdMap[sellerId] == myUserId);
-      if (isMyProduct) {
-        if (salesMap.containsKey(productName)) {
-          salesMap[productName]['Quantity Sold'] += qty;
-          salesMap[productName]['Total Price'] += itemTotalPrice;
-        } else {
-          salesMap[productName] = {
-            'Individual Price': productPrice,
-            'Quantity Sold': qty,
-            'Total Price': itemTotalPrice,
-          };
-        }
-        totalSales += itemTotalPrice;
+Map<String, _ProductSales> _aggregate(List<Map<String, dynamic>> orders) {
+  final sales = <String, _ProductSales>{};
+  for (final order in orders) {
+    for (final item in decodeSellerItems(order['order_items'])) {
+      final id = item['product_id'] as String;
+      final quantity = sellerItemQuantity(item);
+      final cents = sellerItemCents(item);
+      final product = sales.putIfAbsent(
+          id,
+          () => _ProductSales(
+              id, item['product_name'] as String? ?? 'Unknown Product', cents));
+      product.quantity += quantity;
+      product.totalCents += cents * quantity;
+      product.prices.add(cents);
+      if (product.totalCents > 9007199254740991) {
+        throw const FormatException('Sales total exceeds supported precision.');
       }
     }
   }
-
-  salesMap['Total Sales'] = totalSales;
-
-  final keyName = reportType == "daily"
-      ? "Daily Involving Me"
-      : reportType == "monthly"
-          ? "Monthly Involving Me"
-          : "Yearly Involving Me";
-
-  return {
-    keyName: {
-      "Sales": salesMap,
-    },
-  };
+  return sales;
 }
 
-Map<String, dynamic> _emptySalesReport(String reportType) {
-  final keyName = reportType == "daily"
-      ? "Daily Involving Me"
-      : reportType == "monthly"
-          ? "Monthly Involving Me"
-          : "Yearly Involving Me";
-
+Map<String, dynamic> buildSellerSalesReport(
+    List<Map<String, dynamic>> orders, String type) {
+  final products = _aggregate(orders).values.toList();
+  final names = <String, int>{};
+  for (final product in products) {
+    names[product.name] = (names[product.name] ?? 0) + 1;
+  }
+  final sales = <String, dynamic>{};
+  var totalCents = 0;
+  for (final product in products) {
+    final label = names[product.name]! > 1 || product.name == 'Total Sales'
+        ? '${product.name} (${product.id})'
+        : product.name;
+    sales[label] = {
+      'Individual Price':
+          product.prices.length == 1 ? product.latestCents / 100 : 'Varies',
+      'Quantity Sold': product.quantity,
+      'Total Price': product.totalCents / 100,
+    };
+    totalCents += product.totalCents;
+    if (totalCents > 9007199254740991) {
+      throw const FormatException('Sales total exceeds supported precision.');
+    }
+  }
+  sales['Total Sales'] = totalCents / 100;
+  final title = type == 'daily'
+      ? 'Daily'
+      : type == 'monthly'
+          ? 'Monthly'
+          : 'Yearly';
   return {
-    keyName: {
-      "Sales": {"Total Sales": 0.0},
-    },
+    '$title Involving Me': {'Sales': sales}
   };
 }
 
 Future<List<Map<String, dynamic>>> fetchTop10BestSellers({
   required String myUserId,
+  SupabaseClient? client,
 }) async {
-  final supabase = Supabase.instance.client;
+  final orders = await SellerOrders(client ?? Supabase.instance.client)
+      .read(expectedUserId: myUserId);
+  return buildSellerTop10(orders);
+}
 
-  final sellersResponse = await supabase.from('sellers').select('id, user_id');
-  if (sellersResponse == null || sellersResponse.isEmpty) return [];
+List<Map<String, dynamic>> buildSellerTop10(List<Map<String, dynamic>> orders) {
+  final products = _aggregate(orders).values.toList()
+    ..sort((a, b) {
+      final count = b.quantity.compareTo(a.quantity);
+      return count != 0 ? count : a.id.compareTo(b.id);
+    });
+  return products
+      .take(10)
+      .map((product) => <String, dynamic>{
+            'product_id': product.id,
+            'product_name': product.name,
+            'product_price': product.latestCents / 100,
+            'quantity_sold': product.quantity,
+          })
+      .toList();
+}
 
-  final sellerIdMap = {
-    for (final s in sellersResponse) s['id'] as String: s['user_id'] as String
-  };
-
-  final productsResponse = await supabase
-      .from('products')
-      .select('id, product_name, product_price, seller_id');
-  if (productsResponse == null || productsResponse.isEmpty) return [];
-
-  final productMap = {
-    for (final p in productsResponse)
-      p['id'] as String: {
-        'name': p['product_name'] ?? 'Unknown Product',
-        'price': (p['product_price'] ?? 0).toDouble(),
-        'seller_id': p['seller_id'] ?? '',
-      },
-  };
-
-  final ordersResponse = await supabase.from('orders').select('order_items');
-  if (ordersResponse == null || ordersResponse.isEmpty) return [];
-
-  final productCount = <String, int>{};
-
-  for (final order in ordersResponse) {
-    final orderItemsJson = order['order_items'] as String?;
-    if (orderItemsJson == null || orderItemsJson.isEmpty) continue;
-    List<dynamic> orderItems;
-    try {
-      orderItems = jsonDecode(orderItemsJson);
-    } catch (e) {
-      continue;
-    }
-
-    for (final item in orderItems) {
-      final pid = item['product_id'] as String?;
-      final qty = (item['quantity'] ?? 0) as int;
-      if (pid == null || !productMap.containsKey(pid)) continue;
-
-      final sellerId = productMap[pid]!['seller_id'] as String;
-      if (sellerId == myUserId || (sellerIdMap[sellerId] ?? '') == myUserId) {
-        productCount[pid] = (productCount[pid] ?? 0) + qty;
-      }
-    }
-  }
-
-  final sortedEntries = productCount.entries.toList()
-    ..sort((a, b) => b.value.compareTo(a.value));
-  final top10 = sortedEntries.take(10).toList();
-
-  return [
-    for (final e in top10)
-      {
-        'product_id': e.key,
-        'product_name': productMap[e.key]!['name'],
-        'product_price': productMap[e.key]!['price'],
-        'quantity_sold': e.value,
-      },
-  ];
+class _ProductSales {
+  _ProductSales(this.id, this.name, this.latestCents);
+  final String id;
+  final String name;
+  final int latestCents;
+  final prices = <int>{};
+  int quantity = 0;
+  int totalCents = 0;
 }

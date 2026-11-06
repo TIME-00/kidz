@@ -42,16 +42,22 @@ class _ReportPageState extends State<ReportPage> {
       dateOrMonth = DateTime.now().year.toString();
     }
 
-    final data = await generateAllInvolvingMeReport(
-      reportType: _selectedReport,
-      selectedDate: dateOrMonth,
-      myUserId: myUserId,
-    );
-
-    setState(() {
-      _loading = false;
-      _reportData = data;
-    });
+    try {
+      final data = await generateAllInvolvingMeReport(
+        reportType: _selectedReport,
+        selectedDate: dateOrMonth,
+        myUserId: myUserId,
+      );
+      if (mounted) setState(() => _reportData = data);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _reportData = {});
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Sales could not be calculated. Check order data and try again.')));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   Future<void> _fetchTop10() async {
@@ -65,15 +71,16 @@ class _ReportPageState extends State<ReportPage> {
 
     try {
       final data = await fetchTop10BestSellers(myUserId: myUserId);
-      setState(() {
-        _top10List = data;
-      });
-    } catch (e) {
-      print("Error fetching top10: $e");
+      if (mounted) setState(() => _top10List = data);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _top10List = null);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Sales could not be calculated. Check order data and try again.')));
+      }
     } finally {
-      setState(() {
-        _top10Loading = false;
-      });
+      if (mounted) setState(() => _top10Loading = false);
     }
   }
 
@@ -424,7 +431,7 @@ class _ReportPageState extends State<ReportPage> {
                         fontSize: 14, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                      "  - Individual Price: RM${itemMap['Individual Price']}"),
+                      "  - Individual Price: ${itemMap['Individual Price'] is num ? 'RM${itemMap['Individual Price']}' : 'Varies'}"),
                   Text("  - Quantity: ${itemMap['Quantity Sold']}"),
                   Text("  - Total Price: RM${itemMap['Total Price']}"),
                 ],

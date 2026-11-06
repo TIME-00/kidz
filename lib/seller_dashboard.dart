@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
@@ -7,16 +6,19 @@ import 'product_image.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'edit_product.dart';
+import 'seller_orders.dart';
 
 class SellerDashboard extends StatefulWidget {
-  const SellerDashboard({super.key});
+  const SellerDashboard({super.key, this.client});
+  final SupabaseClient? client;
 
   @override
   State<SellerDashboard> createState() => _SellerDashboardState();
 }
 
 class _SellerDashboardState extends State<SellerDashboard> {
-  final supabase = Supabase.instance.client;
+  late final SupabaseClient supabase =
+      widget.client ?? Supabase.instance.client;
   final _formKey = GlobalKey<FormState>();
   final productNameController = TextEditingController();
   final productDescriptionController = TextEditingController();
@@ -195,66 +197,28 @@ class _SellerDashboardState extends State<SellerDashboard> {
   /// ✅ Fetch Orders Related to Seller's Products
   Future<void> fetchOrders() async {
     if (sellerId == null) return;
-
     try {
-      final productData = await supabase
-          .from('products')
-          .select('id')
-          .eq('seller_id', sellerId as Object);
-      final productIds =
-          productData.map<String>((p) => p['id'].toString()).toList();
-
-      final allOrders = await supabase
-          .from('orders')
-          .select('*')
-          .order('order_date', ascending: false);
-
-      final List<Map<String, dynamic>> filteredOrders = [];
-
-      for (final order in allOrders) {
-        dynamic itemsRaw = order['order_items'];
-        List<dynamic> items = [];
-        if (itemsRaw is String) {
-          try {
-            items = jsonDecode(itemsRaw);
-          } catch (_) {
-            continue;
-          }
-        } else if (itemsRaw is List) {
-          items = itemsRaw;
-        }
-
-        final filteredItems = items
-            .where((item) => productIds.contains(item['product_id']))
-            .toList();
-
-        if (filteredItems.isNotEmpty) {
-          filteredOrders.add({
-            'id': order['id'],
-            'order_date': order['order_date'],
-            'total_price': order['total_price'],
-            'status': order['status'],
-            'delivery_address': order['delivery_address'] ?? 'N/A',
-            'order_items': filteredItems,
-          });
-        }
-      }
-
-      setState(() => orders = filteredOrders);
-    } catch (e) {
-      print("❌ Error fetching orders: $e");
+      final response = await SellerOrders(supabase).read();
+      if (mounted) setState(() => orders = response);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => orders = []);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Orders could not be loaded. Try again.')));
     }
   }
 
-  /// ✅ Update Order Status in Database & Refresh UI
-  Future<void> updateOrderStatus(String orderId, String newStatus) async {
+  Future<void> updateOrderStatus(
+      Map<String, dynamic> order, String status) async {
     try {
-      await supabase
-          .from('orders')
-          .update({'status': newStatus}).eq('id', orderId);
+      await SellerOrders(supabase).setStatus(order, status);
       await fetchOrders();
-    } catch (e) {
-      print("❌ Error updating order status: $e");
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:
+              Text('Status could not be changed. Refresh and try again.')));
+      await fetchOrders();
     }
   }
 
@@ -525,19 +489,34 @@ class _SellerDashboardState extends State<SellerDashboard> {
                                   style: TextStyle(fontWeight: FontWeight.bold),
                                 ),
                                 DropdownButton<String>(
-                                  value: order["status"],
+                                  value: const [
+                                    "Packaging",
+                                    "Shipping",
+                                    "Delivering"
+                                  ].contains(order["status"])
+                                      ? order["status"]
+                                      : null,
+                                  hint: Text(order["status"] as String),
                                   items: ["Packaging", "Shipping", "Delivering"]
                                       .map((status) => DropdownMenuItem(
                                           value: status, child: Text(status)))
                                       .toList(),
-                                  onChanged: (newStatus) {
-                                    if (newStatus != null) {
-                                      updateOrderStatus(order["id"], newStatus);
-                                    }
-                                  },
+                                  onChanged: order["can_update_status"] != true
+                                      ? null
+                                      : (newStatus) {
+                                          if (newStatus != null) {
+                                            updateOrderStatus(
+                                                Map<String, dynamic>.from(
+                                                    order),
+                                                newStatus);
+                                          }
+                                        },
                                 ),
                               ],
-                            )
+                            ),
+                            if (order["can_update_status"] != true)
+                              const Text(
+                                  'Shared or changed order status is managed by Admin.'),
                           ],
                         ),
                       ),
