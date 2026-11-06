@@ -1,19 +1,16 @@
-**Kidz Toy Store**
-**Overview**
-Kidz Toy Store is a mobile application designed for selling children's toys. The app provides an intuitive shopping experience, allowing users to browse products, manage their accounts, and complete purchases smoothly.
+# kidz_store
 
-**Features**
-- Optimized Performance: Enhanced code for smoother, more efficient usage.
-- Improved User Experience: More intuitive and user-friendly navigation.
-- Bug Fixes: Fixed observed issues for better stability.
+A new Flutter project.
 
-**Tech Stack**
-Framework: Flutter
-Backend: Supabase
-Database: Supabase
-Development Tools: Android Studio, Visual Studio Code
+## Getting Started
 
-**Future Enhancements**
-- Adding more payment options.
-- Enhancing the product recommendation system.
-- Implementing customer reviews and ratings.
+This project is a starting point for a Flutter application.
+
+A few resources to get you started if this is your first Flutter project:
+
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
