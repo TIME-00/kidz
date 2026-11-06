@@ -1,19 +1,52 @@
-**Kidz Toy Store**
-**Overview**
-Kidz Toy Store is a mobile application designed for selling children's toys. The app provides an intuitive shopping experience, allowing users to browse products, manage their accounts, and complete purchases smoothly.
+# Kidz Store
 
-**Features**
-- Optimized Performance: Enhanced code for smoother, more efficient usage.
-- Improved User Experience: More intuitive and user-friendly navigation.
-- Bug Fixes: Fixed observed issues for better stability.
+Kidz Store is a Flutter mobile shopping application for children's products,
+backed by Supabase (Auth, PostgreSQL with Row-Level Security, and Storage). It
+supports four roles:
 
-**Tech Stack**
-Framework: Flutter
-Backend: Supabase
-Database: Supabase
-Development Tools: Android Studio, Visual Studio Code
+- **Guests** browse the catalogue.
+- **Buyers** shop, check out and track orders.
+- **Sellers** manage their own products.
+- **Admins** oversee users, Sellers, products and orders.
 
-**Future Enhancements**
-- Adding more payment options.
-- Enhancing the product recommendation system.
-- Implementing customer reviews and ratings.
+## Documentation
+
+Start with the [documentation index](docs/README.md).
+
+- [Current State (2026-11-06)](docs/current-state-2026-11-06.md): architecture,
+  Supabase Auth, RLS, Admin permissions, Android status
+- [Evidence Register and Timeline](docs/history/01-evidence-and-timeline.md)
+- [Initial Project Plan (March 2025)](docs/history/02-initial-project-plan.md)
+- [Development History](docs/history/03-development-history.md)
+- [July 2026 Improvement Plan](docs/history/04-july-2026-improvement-plan.md)
+- [Requirements Traceability](docs/history/05-requirements-traceability.md)
+
+Technical references:
+
+- [SUPABASE.md](SUPABASE.md): backend configuration, migrations, tests
+- [ADMIN_PHASE2.md](ADMIN_PHASE2.md): current Admin permissions and
+  integration steps
+- [KIDZ_PROJECT_DOCUMENTATION.md](KIDZ_PROJECT_DOCUMENTATION.md): screen-level
+  analysis of the baseline application
+
+## Running the app
+
+The current application reads its Supabase settings at build time; no key
+literal is present in the current source tree. A legacy public `anon` key remains
+in the original 2025 Git history; see the [evidence register](docs/history/01-evidence-and-timeline.md#15-register-of-information-that-could-not-be-verified).
+
+**Integration status:** the Seller migration `20261106094017_seller_order_access.sql`
+was applied and verified on 7 November 2026 (+08:00), after a fresh backup and
+isolated restore test. Existing accounts and business records are unchanged. Mixed-Seller
+orders expose only the caller's items; their shared status remains Admin-managed.
+See [Current State](docs/current-state-2026-11-06.md#8-seller-fix-and-verified-hosted-integration).
+
+Run with:
+
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_YOUR_KEY
+```
+
+See [SUPABASE.md](SUPABASE.md) for build, migration and test instructions.
