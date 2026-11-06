@@ -1,5 +1,14 @@
 # Phase 2 implementation and verification
 
+> **Later status, verified 2026-11-06:** both Admin migrations are applied to
+> the hosted database. This document preserves the earlier local implementation
+> or verification record; its no-hosted-change statements refer to that task.
+> See [Current State](docs/current-state-2026-11-06.md) for read-only confirmation
+> and the confirmed Seller regression blocking the final `main` merge.
+>
+> Historical instructions below are not a directive to repeat migration or
+> account creation. This documentation review changed no hosted data or settings.
+
 Completed locally on 2026-11-06 in `<project>`.
 No commit or deployment was made. No hosted database schema/data, accounts,
 passwords, roles, credentials or project settings were changed. Hosted access

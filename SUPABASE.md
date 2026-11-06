@@ -57,20 +57,22 @@ image (the upload path carries no seller segment).
 
 ## Applying
 
-Phase 1 Admin changes are local and have **not** been applied to the hosted
-project. Do not run the hosted commands below as part of local review. See
-[Admin restoration and operator runbook](ADMIN_PHASES.md) and
-[verification results](ADMIN_VERIFICATION.md).
+**Hosted status verified read-only on 2026-11-06:** the baseline and both Admin
+migrations are applied: `20260727000000`, `20261106030934`, and `20261106034711`.
+The November 6 deployment followed verified backup and isolated recovery checks.
+Do not reset or reapply those migrations. The commands below are a reference
+for a separately approved future deployment, not pending work for this project.
 
-Phase 2 is also local only. It restores the original supported management
-operations using narrow server-side RPCs and strengthens Admin reads with live
-role/session checks. See [ADMIN_PHASE2.md](ADMIN_PHASE2.md) for behavior changes,
-SQL/foreign-key details, safe integration steps, and current test results.
+Phases 1 and 2 provide Supabase Auth, scoped management RPCs and live Admin
+role/session checks. See [ADMIN_PHASE2.md](ADMIN_PHASE2.md) for the original
+implementation record and [Current State](docs/current-state-2026-11-06.md) for
+current hosted verification and the confirmed Seller regression blocking merge.
+The phase verification records retain their earlier local-only task scope.
 
 ```bash
 supabase link --project-ref YOUR_PROJECT_REF
 supabase db push --linked --dry-run --skip-vault    # review first; requires approval
-supabase db push --linked --skip-vault              # NOT run in local implementation
+supabase db push --linked --skip-vault              # future approved changes only
 ```
 
 `supabase/seed.sql` holds synthetic demo products and contains no credentials.
@@ -94,11 +96,12 @@ These are pre-existing app behaviours the backend deliberately does not enable:
 - **Legacy `admin` credentials** — the table remains locked with RLS and no
   policies. Phase 1 removes its login lookup and uses Supabase Auth plus the
   server-controlled `app_metadata.role = "admin"` claim. Admin reads require the
-  new local migrations; Phase 2 restores only historically supported actions
+  applied Admin migrations; Phase 2 restores only historically supported actions
   through role/session-checked RPCs. The trusted
   operator tool and the separate Phase 2 management plan are documented in
   [ADMIN_PHASES.md](ADMIN_PHASES.md); the implemented management restoration is
-  documented in [ADMIN_PHASE2.md](ADMIN_PHASE2.md). No hosted changes have been performed.
+  documented in [ADMIN_PHASE2.md](ADMIN_PHASE2.md). Hosted deployment occurred on November 6; no hosted mutation was made during this documentation review.
+- **Seller order workflow — CONFIRMED BUG:** current order RLS excludes customer orders from the product-owning Seller's dashboard and sales reports; Seller status updates affect no rows. This is a `main` merge blocker requiring a separately approved scoped fix; see [Current State](docs/current-state-2026-11-06.md#seller-order-visibility-confirmed-bug).
 - **`bankingcard` stores a CVV** — `lib/addcard.dart` writes a raw card number
   and CVV. Storing a CVV is prohibited by PCI-DSS. The table is owner-locked and
   must only ever hold synthetic demo values. Replace with a payment provider

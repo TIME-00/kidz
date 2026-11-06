@@ -1,5 +1,14 @@
 # Phase 1 local verification
 
+> **Later status, verified 2026-11-06:** both Admin migrations are applied to
+> the hosted database. This document preserves the earlier local implementation
+> or verification record; its no-hosted-change statements refer to that task.
+> See [Current State](docs/current-state-2026-11-06.md) for read-only confirmation
+> and the confirmed Seller regression blocking the final `main` merge.
+>
+> Historical instructions below are not a directive to repeat migration or
+> account creation. This documentation review changed no hosted data or settings.
+
 > Historical Phase 1 record. Phase 2 is now implemented locally, including a
 > project-local isolated SQL test dependency. See
 > [ADMIN_PHASE2_VERIFICATION.md](ADMIN_PHASE2_VERIFICATION.md) for current results

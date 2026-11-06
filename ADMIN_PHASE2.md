@@ -1,5 +1,14 @@
 # Phase 2: original Admin management restored locally
 
+> **Later status, verified 2026-11-06:** both Admin migrations are applied to
+> the hosted database. This document preserves the earlier local implementation
+> or verification record; its no-hosted-change statements refer to that task.
+> See [Current State](docs/current-state-2026-11-06.md) for read-only confirmation
+> and the confirmed Seller regression blocking the final `main` merge.
+>
+> Historical instructions below are not a directive to repeat migration or
+> account creation. This documentation review changed no hosted data or settings.
+
 Implementation is local only. No hosted migrations, account/password/role changes,
 credential changes, settings changes, or deployments were performed. The local
 Admin remains an application Admin, never a Flutter client with a service key.
